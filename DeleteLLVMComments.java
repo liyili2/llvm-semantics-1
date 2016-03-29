@@ -77,7 +77,7 @@ public class DeleteLLVMComments {
         //if(args.length == 0){
         //    System.err.println("Haven't specified the input program.");
         //}
-        String fileName = "printNum.ll";
+        String fileName = args[0];
         File llvmFile = new File(fileName);
         String newLine = "";
         if(llvmFile.isFile()){//if input file exists.
@@ -119,6 +119,9 @@ public class DeleteLLVMComments {
                                             newLine += currentLine.charAt(i);
                                             String content = getCStringContent(currentLine, i + 1);
                                             for(int j = 0; j < content.length(); ++j){
+						if (!isInQuoteBlock && content.charAt(j) == ';') {
+						    break;
+						}
                                                 newLine += content.charAt(j);
                                                 i++;
                                                 if(content.charAt(j) == '\\'){
