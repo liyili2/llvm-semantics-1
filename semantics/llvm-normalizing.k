@@ -1045,11 +1045,13 @@ create an abstract for fence and do the same for fence operation.
 
     //define checkSingleAssignment
     rule checkSingleAssignment(.K, K:K, S:Set) => funBegin(K)
-    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
+    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
+//    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
                                 BB:BBTerminatorInstruction BBL:BasicBlockList, K:K, S:Set)
          => checkSingleAssignmentInBlock(makeVarFromLabel(L),Ins BB, .K, S)
            ~> checkSingleAssignment(BBL, K, S:Set)
-    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
+    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
+//    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
                                 BB:BBTerminatorInstruction, K:K, S:Set)
          => checkSingleAssignmentInBlock(makeVarFromLabel(L),Ins BB, .K, S) ~>
             checkSingleAssignment(.K, K, S)

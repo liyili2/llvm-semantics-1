@@ -127,7 +127,8 @@ module LLVM-DECLARATIONS
              ~> instructionListToK(Ins) ~> Tem)] </basicBlocks>*/
         //when FunName ==K FunName'
 /*
-    rule <k> funBegin ~> L:LabelStringConstant Ins:InstructionList
+    rule <k> funBegin ~> L:LabelStringConstant : Ins:InstructionList
+//    rule <k> funBegin ~> L:LabelStringConstant Ins:InstructionList
                          Tem:BBTerminatorInstruction BBL:BasicBlockList
              => BBL ...</k>
         <currFunction> FunName:SymbolicValueRef </currFunction>
@@ -138,7 +139,8 @@ module LLVM-DECLARATIONS
              ~> instructionListToK(Ins) ~> Tem)] </basicBlocks>
         when FunName ==K FunName'
 
-    rule <k> funBegin ~> L:LabelStringConstant Ins:InstructionList
+    rule <k> funBegin ~> L:LabelStringConstant : Ins:InstructionList
+//    rule <k> funBegin ~> L:LabelStringConstant Ins:InstructionList
                          Tem:BBTerminatorInstruction
              => .K ...</k>
         <currFunction> FunName:SymbolicValueRef </currFunction>
@@ -161,7 +163,8 @@ module LLVM-DECLARATIONS
         <currBlock> Name':Id => Name </currBlock>
         <prevBlock> _ => Name' </prevBlock>
     rule
-        <k> Label:LabelStringConstant Ins:InstructionList
+        <k> Label:LabelStringConstant : Ins:InstructionList
+//        <k> Label:LabelStringConstant Ins:InstructionList
             Tem:BBTerminatorInstruction => .K ...</k>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>

@@ -3,13 +3,14 @@
 
 <tests>
   <test
-      definition="../semantics/llvm-syntax.k"
+      definition="../semantics/llvm-semantics.k"
       programs="."
       results="parsing-results"
       extension="ll"
       >
     <all-programs>
       <krun-option name="--smt" value="none" />
+      <krun-option name="--parser" value="./script" />
     </all-programs>
   </test>
 </tests>

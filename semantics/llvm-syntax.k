@@ -1174,6 +1174,7 @@ module LLVM-SYNTAX
     */
     syntax BasicBlock ::= InstructionList BBTerminatorInstruction
                         | LabelStringConstant ":" InstructionList BBTerminatorInstruction
+//                        | LabelStringConstant InstructionList BBTerminatorInstruction
     syntax BasicBlockList ::= BasicBlock BasicBlockList | BasicBlock
 
     /*@
