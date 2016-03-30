@@ -9,7 +9,7 @@ module LLVM-ABSTRACTSYNTAX
                       | OptAddrSpace
                       | listK(List)  [latex({#1})]
                       | VoidType
-                      | vectorValue(ElemList)
+                      | vectorValue(K)
 
     syntax SimpleTypeResult ::= IntTypeCore
                               | pointerTypeValue(K, K) //type, address space
@@ -72,23 +72,23 @@ module LLVM-ABSTRACTSYNTAX
 
     syntax TypeList ::= argListToTypeList(ArgList) [function]
 
-    rule argListToTypeList('argListUnit(.KList)) => .TypeList
+    rule argListToTypeList(argListUnit(.KList)) => .TypeList
     rule argListToTypeList(...) => .TypeList
-    rule argListToTypeList('argTypeTwo(T:Type,, Pas:ParamAttrs))
+    rule argListToTypeList(argTypeTwo(T:Type, Pas:ParamAttrs))
                             => T
-    rule argListToTypeList('argTypeThree(T:Type,, Pas:ParamAttrs,, L:LocalVar))
+    rule argListToTypeList(argTypeThree(T:Type, Pas:ParamAttrs, L:LocalVar))
                             => T
-    rule argListToTypeList('argTypeTwo(T:Type,, Pas:ParamAttrs), As:ArgList)
+    rule argListToTypeList(argTypeTwo(T:Type, Pas:ParamAttrs), As:ArgList)
                             => T,argListToTypeList(As)
-    rule argListToTypeList('argTypeThree(T:Type,, Pas:ParamAttrs,, L:LocalVar), As:ArgList)
+    rule argListToTypeList(argTypeThree(T:Type, Pas:ParamAttrs, L:LocalVar), As:ArgList)
                             => T,argListToTypeList(As)
 
     rule arrayType(K1:KResult, K2:KResult) => arrayTypeValue(K1, K2) [structural]
-    rule 'structType(K1:KResult) => structTypeValue(K1) [structural]
-    rule 'functionType(K1:K,, K2:ArgList) => functionTypeEval(K1, argListToTypeList(K2))
+    rule structType(K1:KResult) => structTypeValue(K1) [structural]
+    rule functionType(K1:K, K2:ArgList) => functionTypeEval(K1, argListToTypeList(K2))
                                                         [structural]
     rule functionTypeEval(K1:KResult, K2:KResult) => functionTypeValue(K1, K2) [structural]
-    rule 'pointerType(K1:KResult,, K2:KResult) => pointerTypeValue(K1, K2) [structural]
+    rule pointerType(K1:KResult, K2:KResult) => pointerTypeValue(K1, K2) [structural]
 
     //uniform the types.
     rule [ I:UnsignedInt x T:Type ] => arrayType(T,
@@ -110,7 +110,7 @@ module LLVM-ABSTRACTSYNTAX
     syntax Loc ::= funptr(K)
     syntax ValueRef ::= Loc
 
-    syntax KItem ::= vector(ElemList)
+    syntax KItem ::= vector(K)
     rule vector(E:KResult) => vectorValue(E)
 
 /*
@@ -178,7 +178,7 @@ module LLVM-ABSTRACTSYNTAX
     syntax Case ::= CaseResult
     syntax Cases ::= List{Case,","} [strict,klabel('caseCon)]
     //syntax KItem ::= Cases
-    rule case(K:KResult, K') => caseValue(K, K') [structural]
+    rule case(K:KResult, K':K) => caseValue(K, K') [structural] // may want K':K
 
     syntax KItem ::= arguments(ElemList) [strict]
     syntax KItem ::= arg(Set, K, K) // Modifiers, Type, Value/Name

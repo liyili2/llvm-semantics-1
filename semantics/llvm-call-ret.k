@@ -6,10 +6,11 @@ requires "llvm-helpers.k"
 requires "llvm-standard-library-syntax.k"
 requires "llvm-syscalls-syntax.k"
 requires "llvm-configuration.k"
-requires "kast.k"
+//requires "kast.k"
+requires "domains.k"
 
 module LLVM-CALL-RET
-    imports KCELLS
+    //imports KCELLS
     imports LLVM-SYNTAX
     imports LLVM-ABSTRACTSYNTAX
     imports LLVM-SETTINGS

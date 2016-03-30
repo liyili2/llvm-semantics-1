@@ -15,6 +15,17 @@ This document describes the human readable representation and notation.
 
 This syntax requires a input LLVM program without comments.
 */
+
+
+module LLVM-SYNTAX-NEW
+  imports LLVM-SYNTAX
+
+  syntax OptDllStorageClass ::= "" [klabel(dllStorageEmpty),onlyLabel]
+  // TODO: other empty strings
+  
+endmodule
+
+
 module LLVM-SYNTAX
 
     /*@
@@ -101,7 +112,7 @@ module LLVM-SYNTAX
     syntax NSW ::= "nsw" 
     syntax NUW ::= "nuw"
     syntax OptNW  ::= NUW NSW | NSW NUW | NSW | NUW
-                    | "" [klabel('nwEmpty),onlyLabel]
+                    | "" [klabel(nwEmpty),onlyLabel]
 
 
     /*@
@@ -109,7 +120,7 @@ module LLVM-SYNTAX
       is a poison value if %op1 is not a multiple of %op2 (as such,
       “((a udiv exact b) mul b) == a”).
     */
-    syntax OptExact ::= "exact" | "" [klabel('exactEmpty),onlyLabel]
+    syntax OptExact ::= "exact" | "" [klabel(exactEmpty),onlyLabel]
 
 
     /*@
@@ -121,7 +132,7 @@ module LLVM-SYNTAX
       operations. This is not Java’s “volatile” and has no cross-thread
       synchronization behavior.
     */
-    syntax OptVolatile ::= "volatile" | "" [klabel('volatileEmpty),onlyLabel]
+    syntax OptVolatile ::= "volatile" | "" [klabel(volatileEmpty),onlyLabel]
 
 
     /*@
@@ -131,7 +142,7 @@ module LLVM-SYNTAX
       multiple atomic stores.
     */
     syntax Atomic ::= "atomic"
-    syntax OptAtomic ::= Atomic | "" [klabel('atomicEmpty),onlyLabel]
+    syntax OptAtomic ::= Atomic | "" [klabel(atomicEmpty),onlyLabel]
 
 
     /*@
@@ -219,7 +230,7 @@ module LLVM-SYNTAX
     syntax NonExternalLinkage ::= "private" | "internal" | "weak" | "weak_odr"  | "common"
                                 | "linkonce" | "linkonce_odr" | "available_externally"
                                 | "appending" | "linker_private" | "linker_private_weak"
-                                | "" [klabel('nonExternalLinkageEmpty),onlyLabel]
+                                | "" [klabel(nonExternalLinkageEmpty),onlyLabel]
     syntax ExternalLinkage ::= "extern_weak" | "external"
     syntax OptLinkage ::= NonExternalLinkage | ExternalLinkage
 
@@ -249,7 +260,7 @@ module LLVM-SYNTAX
       A symbol with internal or private linkage must have default visibility.
     */
     syntax OptVisibilityStyle ::= "default" | "hidden" | "protected"
-                               | "" [klabel('visibilityEmpty),onlyLabel]
+                               | "" [klabel(visibilityEmpty),onlyLabel]
 
 
     /*@
@@ -270,7 +281,12 @@ module LLVM-SYNTAX
          externally referenced and must refrain from deleting the symbol. 
     */
     syntax OptDllStorageClass ::= "dllimport" | "dllexport"
-                                | "" [klabel('dllStorageEmpty),onlyLabel]
+    	   		      | "dllStorageEmpty" // TODO: don't forget this
+                           //     | "" [klabel(dllStorageEmpty),onlyLabel]
+
+
+    // TODO: other empty strings like this
+
 
 
     /*@
@@ -368,7 +384,7 @@ module LLVM-SYNTAX
                             | "spir_func" | "spir_kernel" | "x86_64_sysvcc"
                             | "x86_64_win64cc" | "webkit_jscc" | "anyregcc"
                             | "preserve_mostcc" | "preserve_allcc" | "cc" UnsignedInt
-                            | "" [klabel('callingConvEmpty),onlyLabel]
+                            | "" [klabel(callingConvEmpty),onlyLabel]
 
 
     /*@
@@ -402,20 +418,20 @@ module LLVM-SYNTAX
       to be part of the function, not of the function type, so functions with
       different parameter attributes can have the same function type.
     */
-    syntax RetAttr ::= "inreg" [klabel('inregOfReturn)]
-                     | "zeroext" [klabel('zeroextOfReturn)]
-                     | "signext"  [klabel('signextOfReturn)]
-                     | "noalias" [klabel('noaliasOfReturn)]
+    syntax RetAttr ::= "inreg" [klabel(inregOfReturn)]
+                     | "zeroext" [klabel(zeroextOfReturn)]
+                     | "signext"  [klabel(signextOfReturn)]
+                     | "noalias" [klabel(noaliasOfReturn)]
     syntax RetAttrs ::= List{RetAttr," "}
 
     syntax ParamAttr ::= Align | "sret" | "nocapture" | "byval"
                        | "nest" | "inalloca" | "returned"
-                       | "readnone" [klabel('readnoneOfParam)]
-                       | "readonly" [klabel('readonlyOfParam)]
-                       | "inreg" [klabel('inregOfParam)]
-                       | "zeroext" [klabel('zeroextOfParam)]
-                       | "signext"  [klabel('signextOfParam)]
-                       | "noalias" [klabel('noaliasOfParam)]
+                       | "readnone" [klabel(readnoneOfParam)]
+                       | "readonly" [klabel(readonlyOfParam)]
+                       | "inreg" [klabel(inregOfParam)]
+                       | "zeroext" [klabel(zeroextOfParam)]
+                       | "signext"  [klabel(signextOfParam)]
+                       | "noalias" [klabel(noaliasOfParam)]
     syntax ParamAttrs ::= List{ParamAttr," "}
 
     /*@
@@ -430,14 +446,14 @@ module LLVM-SYNTAX
                       | "returns_twice" | "nonlazybind" | "cold" | "minsize" 
                       | "noduplicate" | "noimplicitfloat" | "noredzone" | "optnone"
                       | "sanitize_address" | "sanitize_memory"
-                      | "readonly" [klabel('readonlyOfComm)]
-                      | "readnone" [klabel('readnoneOfComm)]
+                      | "readonly" [klabel(readonlyOfComm)]
+                      | "readnone" [klabel(readnoneOfComm)]
                       | StringName "=" StringName | AttributeGroupId
     syntax FuncAttr ::= CommAttr | alignstack(UnsignedInt)
-    syntax FuncAttrs ::= List{FuncAttr," "} [klabel('funcAttrs)]
+    syntax FuncAttrs ::= List{FuncAttr," "} [klabel(funcAttrs)]
     syntax GroupAttr ::= CommAttr | StringName | "alignstack" "=" UnsignedInt
                        | "align" "=" UnsignedInt
-    syntax GroupAttrs ::= List{GroupAttr," "} [klabel('groupAttrList)]
+    syntax GroupAttrs ::= List{GroupAttr," "} [klabel(groupAttrList)]
 
 
     /*@
@@ -472,7 +488,7 @@ module LLVM-SYNTAX
       is restricted to generating machine code which can interoperate with a
       collector provided externally.
     */
-    syntax OptGC ::= "gc" StringName | "" [klabel('gcEmpty),onlyLabel]
+    syntax OptGC ::= "gc" StringName | "" [klabel(gcEmpty),onlyLabel]
 
 
     /*@
@@ -482,7 +498,7 @@ module LLVM-SYNTAX
       with specific functions and make it available through the function pointer
       while still allowing the function pointer to be called.
     */
-    syntax OptPrefix ::= "prefix" Type ValueRef | "" [klabel('prefixEmpty),onlyLabel]
+    syntax OptPrefix ::= "prefix" Type ValueRef | "" [klabel(prefixEmpty),onlyLabel]
 
 
     /*@
@@ -498,7 +514,7 @@ module LLVM-SYNTAX
       to reason about the prologue data. Obviously this makes the format of the prologue
       data highly target dependent.
     */
-    syntax OptPrologue ::= "prologue" Type ValueRef | "" [klabel('prologueEmpty),onlyLabel]
+    syntax OptPrologue ::= "prologue" Type ValueRef | "" [klabel(prologueEmpty),onlyLabel]
 
 
     /*@
@@ -508,7 +524,7 @@ module LLVM-SYNTAX
       If the target supports it, it will emit functions to the section specified. 
       Additionally, the function can be placed in a COMDAT.
     */
-    syntax OptSection ::= "section" StringName | "" [klabel('sectionEmpty),onlyLabel]
+    syntax OptSection ::= "section" StringName | "" [klabel(sectionEmpty),onlyLabel]
 
 
     /*@
@@ -518,8 +534,8 @@ module LLVM-SYNTAX
       that key over some other key. Aliases are placed in the same COMDAT that their
       aliasee computes to, if any.
     */
-    syntax Comdat ::= comdat(ComdatVar) | "comdat" [klabel('simplifiedComdat)]
-    syntax OptComdat ::= Comdat | "" [klabel('comdatEmpty),onlyLabel]
+    syntax Comdat ::= comdat(ComdatVar) | "comdat" [klabel(simplifiedComdat)]
+    syntax OptComdat ::= Comdat | "" [klabel(comdatEmpty),onlyLabel]
 
 
     /*@
@@ -530,8 +546,8 @@ module LLVM-SYNTAX
       All alignments must be a power of 2.
     */
     syntax Align ::= "align" UnsignedInt
-    syntax OptAlign ::= Align | "" [klabel('alignEmpty),onlyLabel]
-    syntax OptSectionComdatAndAlign ::= "" [klabel('sectionComdatAndAlignEmpty),onlyLabel]
+    syntax OptAlign ::= Align | "" [klabel(alignEmpty),onlyLabel]
+    syntax OptSectionComdatAndAlign ::= "" [klabel(sectionComdatAndAlignEmpty),onlyLabel]
                                 | "," "section" StringName
                                 | "," Align
                                 | "," Comdat
@@ -550,8 +566,8 @@ module LLVM-SYNTAX
       If the unnamed_addr attribute is given for a function, the address
       is known to not be significant and two identical functions can be merged.
     */
-    syntax OptAddrSpace ::= addrspace(UnsignedInt) | "" [klabel('addrEmpty),onlyLabel]
-    syntax OptUnnamedAddr ::= "unnamed_addr" | "" [klabel('unnamedEmpty),onlyLabel]
+    syntax OptAddrSpace ::= addrspace(UnsignedInt) | "" [klabel(addrEmpty),onlyLabel]
+    syntax OptUnnamedAddr ::= "unnamed_addr" | "" [klabel(unnamedEmpty),onlyLabel]
 
 
     /*@
@@ -565,7 +581,7 @@ module LLVM-SYNTAX
       If the inbounds keyword is not present, the offsets are added to the base
       address with silently-wrapping two’s complement arithmetic.
     */
-    syntax OptInBounds ::= "inbounds" | "" [klabel('inBoundsEmpty),onlyLabel]
+    syntax OptInBounds ::= "inbounds" | "" [klabel(inBoundsEmpty),onlyLabel]
 
 
     /*@
@@ -580,10 +596,10 @@ module LLVM-SYNTAX
       ‘alignstack‘ keyword is present.
       When the ‘inteldialect‘ keyword is present, the inline asm is using the Intel dialect.
     */
-    syntax OptSideEffect ::= "sideeffect" | "" [klabel('sideeffectEmpty),onlyLabel]
-    syntax OptAlignstack ::= "alignstack" | "" [klabel('alignstackEmpty),onlyLabel]
+    syntax OptSideEffect ::= "sideeffect" | "" [klabel(sideeffectEmpty),onlyLabel]
+    syntax OptAlignstack ::= "alignstack" | "" [klabel(alignstackEmpty),onlyLabel]
     syntax OptInteldialect ::= "inteldialect"
-                             | "" [klabel('inteldialectEmpty),onlyLabel]
+                             | "" [klabel(inteldialectEmpty),onlyLabel]
     //define a AsmBlock to be a string constant.
     syntax AsmBlock ::= StringName
 
@@ -603,7 +619,7 @@ module LLVM-SYNTAX
       If no explicit model is given, the “general dynamic” model is used.
     */
     syntax OptThreadLocal ::= "thread_local" "(" ThreadLocalAttr ")" | "thread_local"
-                         | "" [klabel('threadLocalEmpty),onlyLabel]
+                         | "" [klabel(threadLocalEmpty),onlyLabel]
     syntax ThreadLocalAttr ::= "localdynamic" | "initialexec" | "localexec"
 
 
@@ -618,7 +634,7 @@ module LLVM-SYNTAX
       the variable with externally_initialized.
     */
     syntax OptExternallyInitialized ::= "externally_initialized"
-                                      | "" [klabel('externallyInitEmpty),onlyLabel]
+                                      | "" [klabel(externallyInitEmpty),onlyLabel]
 
 
     /*@
@@ -686,13 +702,13 @@ module LLVM-SYNTAX
     syntax NonVoidType ::= "metadata"
                          | "x86_mmx"
                          | PrimType
-                         | Type OptAddrSpace "*"              [klabel('pointerType), strict]
-                         | LocalName                          [klabel('namedType)]
-                         | Type "(" ArgList ")"               [klabel('functionType)]
+                         | Type OptAddrSpace "*"              [klabel(pointerType), strict]
+                         | LocalName                          [klabel(namedType)]
+                         | Type "(" ArgList ")"               [klabel(functionType)]
                          | "[" UnsignedInt "x" Type "]"
                          | "<" UnsignedInt "x" Type ">"
-                         | "{" TypeList "}"                   [klabel('structType), strict]
-                         | "<" "{" TypeList "}" ">"           [klabel('structType), strict]
+                         | "{" TypeList "}"                   [klabel(structType), strict]
+                         | "<" "{" TypeList "}" ">"           [klabel(structType), strict]
     syntax Type ::= VoidType | NonVoidType
     syntax TypeList ::= List{Type,","}                        [strict]
 
@@ -792,10 +808,10 @@ module LLVM-SYNTAX
       vector typed. They must also be identical types.
     */
     syntax IPredicate ::= "eq" | "ne" | "slt" | "sgt" | "sle" | "sge"
-                         | "ult" [klabel('ultOfIcmp)]
-                         | "ugt" [klabel('ugtOfIcmp)]
-                         | "ule" [klabel('uleOfIcmp)]
-                         | "uge" [klabel('ugeOfIcmp)]
+                         | "ult" [klabel(ultOfIcmp)]
+                         | "ugt" [klabel(ugtOfIcmp)]
+                         | "ule" [klabel(uleOfIcmp)]
+                         | "uge" [klabel(ugeOfIcmp)]
 
 
     /*@
@@ -809,10 +825,10 @@ module LLVM-SYNTAX
     */
     syntax FPredicate ::= "oeq" | "one" | "olt" | "ogt" | "ole" 
                          | "oge" | "ord" | "uno" | "ueq" | "une" | Bool
-                         | "ult" [klabel('ultOfFcmp)]
-                         | "ugt" [klabel('ugtOfFcmp)]
-                         | "ule" [klabel('uleOfFcmp)]
-                         | "uge" [klabel('ugeOfFcmp)]
+                         | "ult" [klabel(ultOfFcmp)]
+                         | "ugt" [klabel(ugtOfFcmp)]
+                         | "ule" [klabel(uleOfFcmp)]
+                         | "uge" [klabel(ugeOfFcmp)]
 
 
     /*@
@@ -821,11 +837,11 @@ module LLVM-SYNTAX
       combination and another construct for the "IntegerType Value" combination.
     */
     syntax ResolvedVal ::= Type ValueRef
-    syntax IntResolveVal ::= IntType ValueRef [klabel('intResolveVal)]
-    syntax IntResolveVals ::= "" [klabel('.IntResolveVals),onlyLabel]
+    syntax IntResolveVal ::= IntType ValueRef [klabel(intResolveVal)]
+    syntax IntResolveVals ::= "" [klabel(.IntResolveVals),onlyLabel]
                             | "," IntResolveVal IntResolveVals
     syntax ReturnedVal ::= List{ResolvedVal,","}
-    syntax Index ::= ResolvedVal | "null"  [klabel('nullOfIndex)]
+    syntax Index ::= ResolvedVal | "null"  [klabel(nullOfIndex)]
     syntax IndexList ::= List{Index,","}
 
 
@@ -873,7 +889,7 @@ module LLVM-SYNTAX
     syntax ValueRef ::= SymbolicValueRef | ConstValueRef
     syntax Undef ::= "undef"
     syntax ConstValueRef ::= Int | FpVal | Bool | ConstExpr
-                           | "null" [klabel('nullOfConstValueRef)]
+                           | "null" [klabel(nullOfConstValueRef)]
                            | Undef | "zeroinitializer"
                            | "<" ReturnedVal ">"
                            | "[" ReturnedVal "]"
@@ -887,7 +903,7 @@ module LLVM-SYNTAX
                            | "!" "(" IndexList ")"
                            | "!" "{" MetadataValues "}"
     //define the values that appear in a metadata list
-    syntax MetadataValueInt ::= "!" UnsignedInt [klabel('metaValueInVarForm)]
+    syntax MetadataValueInt ::= "!" UnsignedInt [klabel(metaValueInVarForm)]
     syntax MetadataValueString ::= "!" StringName
     syntax MetadataValue ::= MetadataValueInt
                            | MetadataValueString
@@ -926,7 +942,7 @@ module LLVM-SYNTAX
       This attribute is used in the landingpad instruction.
       The optional cleanup flag indicates that the landing pad block is a cleanup.
     */
-    syntax OptCleanup ::= "cleanup" | "" [klabel('cleanupEmpty),onlyLabel]
+    syntax OptCleanup ::= "cleanup" | "" [klabel(cleanupEmpty),onlyLabel]
 
     /*@
       define the factors for the landingpad instruction.
@@ -946,8 +962,8 @@ module LLVM-SYNTAX
       The inalloca argument attribute allows the caller to take the address
       of outgoing stack arguments.
     */
-    syntax OptInalloca ::= "inalloca" [klabel('inallocaOfAlloca)]
-                         | "" [klabel('inallocaEmpty),onlyLabel]
+    syntax OptInalloca ::= "inalloca" [klabel(inallocaOfAlloca)]
+                         | "" [klabel(inallocaEmpty),onlyLabel]
 
     /*@
       Atomic instructions (cmpxchg, atomicrmw, fence, atomic load, and
@@ -984,11 +1000,11 @@ module LLVM-SYNTAX
     syntax Ordering ::= "unordered" | "monotonic" | "acquire" | "release"
                          | "acq_rel" | "seq_cst"
     syntax OptSingleThread ::= "singlethread"
-                             | "" [klabel('singlethreadEmpty),onlyLabel]
-    syntax OptScopeOrder ::= OptSingleThread Ordering [klabel('optScopeOrder)]
-                           | "" [klabel('scopeorderEmpty),onlyLabel]
+                             | "" [klabel(singlethreadEmpty),onlyLabel]
+    syntax OptScopeOrder ::= OptSingleThread Ordering [klabel(optScopeOrder)]
+                           | "" [klabel(scopeorderEmpty),onlyLabel]
     syntax OrderingList ::= Ordering | Ordering OrderingList
-    syntax OptDistinct ::= "distinct" | "" [klabel('distinctEmpty),onlyLabel]
+    syntax OptDistinct ::= "distinct" | "" [klabel(distinctEmpty),onlyLabel]
 
     /*@
       There are three arguments to the ‘atomicrmw‘ instruction: an operation to apply,
@@ -1008,20 +1024,20 @@ module LLVM-SYNTAX
     */
     syntax BinOpsForAtomicrmw ::= "xchg" | "nand" | "max"
                                 | "umax" | "umin" | "min"
-                                | "add" [klabel('addOfAtomicrmw)]
-                                | "sub" [klabel('subOfAtomicrmw)]
-                                | "and" [klabel('andOfAtomicrmw)]
-                                | "or" [klabel('orOfAtomicrmw)]
-                                | "xor" [klabel('xorOfAtomicrmw)]
+                                | "add" [klabel(addOfAtomicrmw)]
+                                | "sub" [klabel(subOfAtomicrmw)]
+                                | "and" [klabel(andOfAtomicrmw)]
+                                | "or" [klabel(orOfAtomicrmw)]
+                                | "xor" [klabel(xorOfAtomicrmw)]
 
     //define the metadata in the tail of all instructions.
     syntax InstructionMetadata ::= MetadataVar MetadataValueInt
                                  | MetadataVar "!" "{" MetadataValues "}"
-    syntax InstructionMetadatas ::= "" [klabel('.InstructionMetadatas),onlyLabel]
+    syntax InstructionMetadatas ::= "" [klabel(.InstructionMetadatas),onlyLabel]
                                  | "," InstructionMetadata InstructionMetadatas
 
     //define parameter lists. It is a syntactic convince to define it like this.
-    syntax ParamFactor ::= Type ParamAttrs ValueRef [klabel('paramFactor)]
+    syntax ParamFactor ::= Type ParamAttrs ValueRef [klabel(paramFactor)]
     syntax ParamList ::= List{ParamFactor,","}
 
     /*@
@@ -1048,7 +1064,7 @@ module LLVM-SYNTAX
       of instructions: terminator instructions, binary instructions, bitwise binary
       instructions, memory instructions, and other instructions.
     */
-    syntax InstructionList ::= List{Instruction," "} [klabel('instList)]
+    syntax InstructionList ::= List{Instruction," "} [klabel(instList)]
     syntax Instruction ::= LocalAssign InstVal | InstVal
                          | "store" OptAtomic OptVolatile ResolvedVal "," ResolvedVal
                            OptScopeOrder  "," Align InstructionMetadatas
@@ -1129,7 +1145,7 @@ module LLVM-SYNTAX
     */
     syntax AliaseeRef ::= ResolvedVal
                         | "bitcast" "(" AliaseeRef "to" Type ")"
-                        | "getelementptr" OptInBounds "(" Type "," IndexList ")" [klabel('elemPtrAliasee)]
+                        | "getelementptr" OptInBounds "(" Type "," IndexList ")" [klabel(elemPtrAliasee)]
 
     /*@
       Define target definitions for the target definition.
@@ -1141,12 +1157,12 @@ module LLVM-SYNTAX
                               | "datalayout" "=" StringName
 
     //Define libraries definitions for the values of the definition of deplibs.
-    syntax LibrariesDefinition ::= "[" Strings "]" [klabel('deplibsValues)]
+    syntax LibrariesDefinition ::= "[" Strings "]" [klabel(deplibsValues)]
 
     //Define argument lists for the function header.
-    syntax ArgType ::= Type ParamAttrs           [klabel('argTypeTwo)]
-                      | Type ParamAttrs LocalVar [klabel('argTypeThree)]
-    syntax ArgList ::= "" [klabel('argListUnit),onlyLabel] | "..."
+    syntax ArgType ::= Type ParamAttrs           [klabel(argTypeTwo)]
+                      | Type ParamAttrs LocalVar [klabel(argTypeThree)]
+    syntax ArgList ::= "" [klabel(argListUnit),onlyLabel] | "..."
                      | ArgType
                      | ArgType "," ArgList
 
@@ -1231,6 +1247,8 @@ module LLVM-SYNTAX
                         | ComdatVar "=" "comdat" SelectionKind
                         | "attributes" AttributeGroupId "=" "{" GroupAttrs "}"
 
-    syntax Module ::= List{Definition," "} [klabel('defList)]
+    syntax Module ::= List{Definition," "} [klabel(defList)]
+
+    configuration <k> $PGM:Module </k>
 
 endmodule
