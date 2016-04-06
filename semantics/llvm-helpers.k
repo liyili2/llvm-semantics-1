@@ -31,7 +31,7 @@ module LLVM-HELPERS
 
 
     // TODO many possible errors will slip by with this, but lots of stuff will work
-    rule 'nullOfConstValueRef(.KList) => loc(-1, 0) [anywhere]
+    rule nullOfConstValueRef => loc(-1, 0) [anywhere]
 
     syntax Int ::= base(Loc) [function]
     rule base(loc(Base:Int, _)) => Base:Int
@@ -65,7 +65,7 @@ module LLVM-HELPERS
     syntax KItem ::= write(K, K, K) [strict] // type, value, location
 
     syntax Kitem ::= innerType(K) [function]
-    rule innerType('pointerType(K:K,, _)) => K:K
+    rule innerType(pointerType(K:K, _)) => K:K
     rule innerType(arrayType(K:K, _)) => K:K
     rule innerType(arrayTypeValue(K:K, _)) => K:K
 
@@ -133,7 +133,7 @@ module LLVM-HELPERS
     rule isFloatType(_) => false [owise]
 
     syntax Bool ::= isPointerType(K) [function]
-    rule isPointerType('pointerType(_,, _)) => true
+    rule isPointerType(pointerType(_, _)) => true
     rule isPointerType(pointerTypeValue(_, _)) => true
     rule isPointerType(_) => false [owise]
 
@@ -143,12 +143,12 @@ module LLVM-HELPERS
     rule isArrayType(_) => false [owise]
 
     syntax Bool ::= isStructType(K)
-    rule isStructType('structType(_)) => true
+    rule isStructType(structType(_)) => true
     rule isStructType(structTypeValue(_)) => true
     rule isStructType(_) => false [owise]
 
     // fixme size should depend on architecture
-    rule sizeofInBits('pointerType(_,, _)) => numBytesPerPointer *Int numBitsPerByte
+    rule sizeofInBits(pointerType(_, _)) => numBytesPerPointer *Int numBitsPerByte
     rule sizeofInBits(pointerTypeValue(_, _)) => numBytesPerPointer *Int numBitsPerByte
     rule sizeofInBits(arrayType(Type:KResult, Len:Int)) => sizeofInBits(Type) *Int Len
     rule sizeofInBits(arrayTypeValue(Type:KResult, Len:Int)) => sizeofInBits(Type) *Int Len
@@ -161,9 +161,9 @@ module LLVM-HELPERS
     rule sizeofInBits(structTypeValue(listK((ListItem(Type:KResult) L:List))))
       => sizeofInBits(Type) +Int sizeofInBits(structTypeValue(listK(L)))
     rule sizeofInBits(structTypeValue(listK(.List))) => 0
-    rule sizeofInBits('structType(listK((ListItem(Type:KResult) L:List))))
-      => sizeofInBits(Type) +Int sizeofInBits('structType(listK(L)))
-    rule sizeofInBits('structType(listK(.List))) => 0
+    rule sizeofInBits(structType(listK((ListItem(Type:KResult) L:List))))
+      => sizeofInBits(Type) +Int sizeofInBits(structType(listK(L)))
+    rule sizeofInBits(structType(listK(.List))) => 0
 
     syntax Int ::= sizeof(K) [function]
     rule sizeof(Type:KResult) => sizeofInBits(Type) /Int numBitsPerByte
@@ -197,105 +197,105 @@ module LLVM-HELPERS
     syntax KItem ::= doubleList(RetAttrs, FuncAttrs)
     syntax ElemList ::= formElemList(K) [function]
 
-    rule formElemList('.InstructionMetadatas(.KList)) => .ElemList
+    rule formElemList(.InstructionMetadatas) => .ElemList
     rule formElemList(, Mv:MetadataVar Mi:MetadataValueInt Ins:InstructionMetadatas)
-              => val(Mv Mi),formElemList(Ins)
+              => elemCons(val(Mv Mi),formElemList(Ins))
     rule formElemList(, Mv:MetadataVar ! { In:MetadataValues } Ins:InstructionMetadatas)
-              => val(Mv ! { In }),formElemList(Ins)
+              => elemCons(val(Mv ! { In }),formElemList(Ins))
     rule formElemList(.LabelValues) => .ElemList
     rule formElemList(label Va:ValueRef, Ls:LabelValues)
-                    => val(addNameToString(Va)),formElemList(Ls)
+                    => elemCons(val(addNameToString(Va)),formElemList(Ls))
     rule formElemList(doubleList(.RetAttrs,.FuncAttrs)) => .ElemList
     rule formElemList(doubleList(.RetAttrs,F:FuncAttr Fs:FuncAttrs))
-            => val(F),formElemList(doubleList(.RetAttrs,Fs))
+            => elemCons(val(F),formElemList(doubleList(.RetAttrs,Fs)))
     rule formElemList(doubleList(R:RetAttr Rs:RetAttrs,Fs:FuncAttrs))
-            => val(R),formElemList(doubleList(Rs,Fs))
+            => elemCons(val(R),formElemList(doubleList(Rs,Fs)))
     rule formElemList(.ParamList) => .ElemList
     rule formElemList(Ty:Type Pa:ParamAttrs Va:ValueRef, Pl:ParamList)
-            => val(arg(formSet(Pa),
-                     addNameToString(Ty),addNameToString(Va))),formElemList(Pl)
+            => elemCons(val(arg(formSet(Pa),
+                     addNameToString(Ty),addNameToString(Va))),formElemList(Pl))
     rule formElemList(.ParamAttrs) => .ElemList
-    rule formElemList(Pa:ParamAttr Ps:ParamAttrs) => val(Pa),formElemList(Ps)
+    rule formElemList(Pa:ParamAttr Ps:ParamAttrs) => elemCons(val(Pa),formElemList(Ps))
     rule formElemList(A:Align) => val(A)
     rule formElemList(nsw) => val(nsw)
     rule formElemList(nuw) => val(nuw)
-    rule formElemList(nsw nuw) => val(nsw),val(nuw)
-    rule formElemList(nuw nsw) => val(nsw),val(nuw)
-    rule formElemList('nwEmpty(.KList)) => .ElemList
+    rule formElemList(nsw nuw) => elemCons(val(nsw),elemCons(val(nuw), .ElemList))
+    rule formElemList(nuw nsw) => elemCons(val(nsw),elemCons(val(nuw), .ElemList))
+    rule formElemList(nwEmpty) => .ElemList
     rule formElemList(.FastMathFlags) => .ElemList
     //here | Done
     //do the same as fast for "nnan" | "ninf" | "nsz" | "arcp"
-    rule formElemList(fast Fl:FastMathFlags) => val(fast),formElemList(Fl)
-    rule formElemList(nnan Fl:FastMathFlags) => val(nnan),formElemList(Fl)
-    rule formElemList(ninf Fl:FastMathFlags) => val(ninf),formElemList(Fl)
-    rule formElemList(nsz Fl:FastMathFlags) => val(nsz),formElemList(Fl)
-    rule formElemList(arcp Fl:FastMathFlags) => val(arcp),formElemList(Fl)
+    rule formElemList(fast Fl:FastMathFlags) => elemCons(val(fast),formElemList(Fl))
+    rule formElemList(nnan Fl:FastMathFlags) => elemCons(val(nnan),formElemList(Fl))
+    rule formElemList(ninf Fl:FastMathFlags) => elemCons(val(ninf),formElemList(Fl))
+    rule formElemList(nsz Fl:FastMathFlags) => elemCons(val(nsz),formElemList(Fl))
+    rule formElemList(arcp Fl:FastMathFlags) => elemCons(val(arcp),formElemList(Fl))
 
     rule formElemList(inbounds) => val(inbounds)
-    rule formElemList('inBoundsEmpty(.KList)) => .ElemList
-    rule formElemList('.IntResolveVals(.KList)) => .ElemList
+    rule formElemList(inBoundsEmpty) => .ElemList
+    rule formElemList(.IntResolveVals) => .ElemList
     rule formElemList(, It:IntType V:ValueRef Ins:IntResolveVals)
-            => val(operand(It,addNameToString(V))),formElemList(Ins)
+            => elemCons(val(operand(It,addNameToString(V))),formElemList(Ins))
     rule formElemList([ V1:ValueRef , V2:ValueRef ])
             => val(edge(addNameToString(V1),addNameToString(V2)))
-    rule formElemList([ V1:ValueRef , V2:ValueRef ] , Pl:PHIList)
-            => val(edge(addNameToString(V1),addNameToString(V2))),formElemList(Pl)
+    rule formElemList(`[_,_],_`( V1:ValueRef , V2:ValueRef , Pl:PHIList))
+            => elemCons(val(edge(addNameToString(V1),addNameToString(V2))),formElemList(Pl))
     rule formElemList(cleanup) => val(cleanup)
-    rule formElemList('cleanupEmpty(.KList)) => .ElemList
+    rule formElemList(cleanupEmpty) => .ElemList
     rule formElemList(.LandingpadFactors) => .ElemList
     rule formElemList(Lpf:LandingpadFactor Lpfs:LandingpadFactors)
-                   => val(Lpf),formElemList(Lpfs)
-    rule formElemList('callingConvEmpty(.KList)) => .ElemList
+                   => elemCons(val(Lpf),formElemList(Lpfs))
+    rule formElemList(callingConvEmpty) => .ElemList
     rule formElemList(Ocv:OptCallingConv) => val(Ocv)
-            when Ocv =/=K 'callingConvEmpty(.KList)
+            when Ocv =/=K callingConvEmpty
     rule formElemList(.RetAttrs) => .ElemList
-    rule formElemList(A:RetAttr As:RetAttrs) => val(A),formElemList(As)
+    rule formElemList(A:RetAttr As:RetAttrs) => elemCons(val(A),formElemList(As))
     rule formElemList(.FuncAttrs) => .ElemList
-    rule formElemList(A:FuncAttr As:FuncAttrs) => val(A),formElemList(As)
-    rule formElemList('atomicEmpty(.KList)) => .ElemList
+    rule formElemList(A:FuncAttr As:FuncAttrs) => elemCons(val(A),formElemList(As))
+    rule formElemList(atomicEmpty) => .ElemList
     rule formElemList(atomic) => val(atomic)
-    rule formElemList('volatileEmpty(.KList)) => .ElemList
+    rule formElemList(volatileEmpty) => .ElemList
     rule formElemList(volatile) => val(volatile)
-    rule formElemList('scopeorderEmpty(.KList)) => .ElemList
-    rule formElemList('optScopeOrder('singlethreadEmpty(.KList),, Or:Ordering))
+    rule formElemList(scopeorderEmpty) => .ElemList
+    rule formElemList(optScopeOrder(singlethreadEmpty, Or:Ordering))
                        => val(Or)
     rule formElemList(singlethread Or:Ordering)
-                       => val(singlethread),val(Or)
+                       => elemCons(val(singlethread),elemCons(val(Or), .ElemList))
     rule formElemList(, Ui:UnsignedInt) => val(Ui)
     rule formElemList(Ui:UnsignedInt, Cil:ConstantIndexList)
-                 => val(Ui),formElemList(Cil)
+                 => elemCons(val(Ui),formElemList(Cil))
     rule formElemList(X:Ordering) => val(X)
     rule formElemList(X:Ordering Xl:OrderingList)
-                 => val(X),formElemList(Xl)
-    rule formElemList('argListUnit(.KList)) => .ElemList
+                 => elemCons(val(X),formElemList(Xl))
+    rule formElemList(argListUnit) => .ElemList
     rule formElemList(...) => .ElemList
     rule formElemList(Ty:Type Pa:ParamAttrs)
              => val(arg(formSet(Pa),addNameToString(Ty),.K))
-    rule formElemList('argTypeThree(Ty:Type,, Pa:ParamAttrs,, Na:LocalVar))
+    rule formElemList(argTypeThree(Ty:Type, Pa:ParamAttrs, Na:LocalVar))
              => val(arg(formSet(Pa),addNameToString(Ty)
                                                         ,addNameToString(Na)))
     rule formElemList(Ty:Type Pa:ParamAttrs, Al:ArgList)
-             => val(arg(formSet(Pa),addNameToString(Ty),.K))
-                                                                 ,formElemList(Al)
-    rule formElemList('argTypeThree(Ty:Type,, Pa:ParamAttrs,, Na:LocalVar), Al:ArgList)
-             => val(arg(formSet(Pa),addNameToString(Ty)
-                                           ,addNameToString(Na))),formElemList(Al)
+             => elemCons(val(arg(formSet(Pa),addNameToString(Ty),.K))
+                                                                 ,formElemList(Al))
+    rule formElemList(argTypeThree(Ty:Type, Pa:ParamAttrs, Na:LocalVar), Al:ArgList)
+             => elemCons(val(arg(formSet(Pa),addNameToString(Ty)
+                                           ,addNameToString(Na))),formElemList(Al))
     rule formElemList(.ReturnedVal) => .ElemList
     rule formElemList(T:Type V:ValueRef , R:ReturnedVal)
-                            => val(operand(T, V)),formElemList(R)
+                            => elemCons(val(operand(T, V)),formElemList(R))
     rule formElemList(K:K) => K [owise]
 
 
 
     syntax Set ::= formSet(K) [function]
-    rule formSet('nwEmpty(.KList)) => .Set
+    rule formSet(nwEmpty) => .Set
     rule formSet(nuw nsw) => SetItem(nuw) SetItem(nsw)
     rule formSet(nsw nuw) => SetItem(nuw) SetItem(nsw)
     rule formSet(nuw) => SetItem(nuw)
     rule formSet(nsw) => SetItem(nsw)
     rule formSet(A:NonExternalLinkage) => SetItem(A)
-         requires A =/=K 'nonExternalLinkageEmpty(.KList)
-    rule formSet('nonExternalLinkageEmpty(.KList)) => .Set
+         requires A =/=K nonExternalLinkageEmpty
+    rule formSet(nonExternalLinkageEmpty) => .Set
     rule formSet(A:GlobalType) => SetItem(A)
     rule formSet(, section S:StringName , C:Comdat , A:Align)
                                           => SetItem(section S) SetItem(C) SetItem(A)
@@ -306,58 +306,58 @@ module LLVM-HELPERS
     rule formSet(, C:Comdat) => SetItem(C)
     rule formSet(, A:Align) => SetItem(A)
     rule formSet(, section S:StringName) => SetItem(section S)
-    rule formSet('sectionComdatAndAlignEmpty(.KList)) => .Set
+    rule formSet(sectionComdatAndAlignEmpty) => .Set
     rule formSet(section S:StringName) => SetItem(section S)
-    rule formSet('sectionEmpty(.KList)) => .Set
+    rule formSet(sectionEmpty) => .Set
     rule formSet(externally_initialized) => SetItem(externally_initialized)
-    rule formSet('externallyInitEmpty(.KList)) => .Set
+    rule formSet(externallyInitEmpty) => .Set
     rule formSet(unnamed_addr) => SetItem(unnamed_addr)
-    rule formSet('unnamedEmpty(.KList)) => .Set
+    rule formSet(unnamedEmpty) => .Set
     rule formSet(prefix T:Type V:ValueRef) => SetItem(prefix T V)
-    rule formSet('prefixEmpty(.KList)) => .Set
+    rule formSet(prefixEmpty) => .Set
     rule formSet(prologue T:Type V:ValueRef) => SetItem(prologue T V)
-    rule formSet('prologueEmpty(.KList)) => .Set
+    rule formSet(prologueEmpty) => .Set
     rule formSet(E:OptAddrSpace) => SetItem(E)
-         requires E =/=K 'addrEmpty(.KList)
-    rule formSet('addrEmpty(.KList)) => .Set
+         requires E =/=K addrEmpty
+    rule formSet(addrEmpty) => .Set
     rule formSet(E:OptThreadLocal) => SetItem(E)
-         requires E =/=K 'threadLocalEmpty(.KList)
-    rule formSet('threadLocalEmpty(.KList)) => .Set
+         requires E =/=K threadLocalEmpty
+    rule formSet(threadLocalEmpty) => .Set
     rule formSet(E:OptDllStorageClass) => SetItem(E)
-         requires E =/=K 'dllStorageEmpty(.KList)
-    rule formSet('dllStorageEmpty(.KList)) => .Set
+         requires E =/=K dllStorageEmpty
+    rule formSet(dllStorageEmpty) => .Set
     rule formSet(E:OptVisibilityStyle) => SetItem(E)
-         requires E =/=K 'visibilityEmpty(.KList)
-    rule formSet('visibilityEmpty(.KList)) => .Set
+         requires E =/=K visibilityEmpty
+    rule formSet(visibilityEmpty) => .Set
     rule formSet(E:ExternalLinkage) => SetItem(E)
-    rule formSet('exactEmpty(.KList)) => .Set
+    rule formSet(exactEmpty) => .Set
     rule formSet(exact) => SetItem(exact)
-    rule formSet('inallocaOfAlloca(.KList)) => SetItem('inallocaOfAlloca(.KList))
-    rule formSet('inallocaEmpty(.KList)) => .Set
-    rule formSet('atomicEmpty(.KList)) => .Set
+    rule formSet(ABCinallocaOfAlloca) => SetItem(ABCinallocaOfAlloca)
+    rule formSet(inallocaEmpty) => .Set
+    rule formSet(atomicEmpty) => .Set
     rule formSet(atomic) => SetItem(atomic)
     rule formSet(A:Align) => SetItem(A)
-    rule formSet('alignEmpty(.KList)) => .Set
+    rule formSet(alignEmpty) => .Set
     rule formSet(C:Comdat) => SetItem(C)
-    rule formSet('comdatEmpty(.KList)) => .Set
+    rule formSet(comdatEmpty) => .Set
     rule formSet(gc S:StringName) => SetItem(gc S)
-    rule formSet('gcEmpty(.KList)) => .Set
-    rule formSet('volatileEmpty(.KList)) => .Set
+    rule formSet(gcEmpty) => .Set
+    rule formSet(volatileEmpty) => .Set
     rule formSet(volatile) => SetItem(volatile)
-    rule formSet('scopeorderEmpty(.KList)) => .Set
-    rule formSet('optScopeOrder('singlethreadEmpty(.KList),, S:Ordering)) => SetItem(S)
+    rule formSet(scopeorderEmpty) => .Set
+    rule formSet(optScopeOrder(singlethreadEmpty, S:Ordering)) => SetItem(S)
     rule formSet(singlethread S:Ordering) => SetItem(singlethread) SetItem(S)
     rule formSet(S:Ordering) => SetItem(S)
     rule formSet(S:Ordering Ss:OrderingList) => SetItem(S) formSet(Ss)
     rule formSet(.FastMathFlags) => .Set
     rule formSet(F:FastMathFlag Fl:FastMathFlags) => SetItem(F) formSet(Fl)
     rule formSet(inbounds) => SetItem(inbounds)
-    rule formSet('inBoundsEmpty(.KList)) => .Set
+    rule formSet(inBoundsEmpty) => .Set
     rule formSet(cleanup) => SetItem(cleanup)
-    rule formSet('cleanupEmpty(.KList)) => .Set
-    rule formSet('callingConvEmpty(.KList)) => .Set
+    rule formSet(cleanupEmpty) => .Set
+    rule formSet(callingConvEmpty) => .Set
     rule formSet(X:OptCallingConv) => SetItem(X)
-         requires X =/=K 'callingConvEmpty(.KList)
+         requires X =/=K callingConvEmpty
     rule formSet(R:RetAttr Rs:RetAttrs) => SetItem(R) formSet(Rs)
     rule formSet(.RetAttrs) => .Set
     rule formSet(R:FuncAttr Rs:FuncAttrs) => SetItem(R) formSet(Rs)
@@ -371,8 +371,8 @@ module LLVM-HELPERS
     rule formCases(.JumpTable) => .Cases
     rule formCases(It:IntType Ca:ConstValueRef,
                  label Va:ValueRef Cs:JumpTable)
-                 => case(operand(It,addNameToString(Ca))
-                                 ,addNameToString(Va)), formCases(Cs)
+                 => caseCons(case(operand(It,addNameToString(Ca))
+                                 ,addNameToString(Va)), formCases(Cs))
     rule formCases(K:K) => K [owise]
 
 /*
@@ -385,11 +385,11 @@ module LLVM-HELPERS
 */
     syntax KItem ::= dealWithAllocaElem(AllocMetadata) [function]
 
-    rule dealWithAllocaElem(Ty:Type) => alloca(Ty,1,'alignEmpty(.KList))
+    rule dealWithAllocaElem(Ty:Type) => alloca(Ty,1,alignEmpty)
     rule dealWithAllocaElem(Ty:Type, A:Align) => alloca(addNameToString(Ty),1,A)
     rule dealWithAllocaElem(Ty:Type, It:IntType V:ValueRef)
                       => preAlloca(addNameToString(Ty),It
-                                         ,addNameToString(V),'alignEmpty(.KList))
+                                         ,addNameToString(V),alignEmpty)
     rule dealWithAllocaElem(Ty:Type, It:IntType V:ValueRef, A:Align)
                       => preAlloca(addNameToString(Ty),It,addNameToString(V),A)
 
@@ -429,19 +429,25 @@ module LLVM-HELPERS
                    | plusInts(K, K, K)    [function]//type int, int
                    | plusInt(K, K, K)     [function]//type int, int
     rule normalizingInt(integerType(N:Int), V:Int) => mod(V, 2 ^Int N)
-    rule normalizingInt(integerType(N:Int), vectorValue(valValue(I:Int),Es:ElemList))
-                       => vectorValue(valValue(mod(I, 2 ^Int N)),
+    rule normalizingInt(integerType(N:Int), vectorValue(elemCons(valValue(I:Int),Es:ElemList)))
+                       => vectorValue(elemCons(
+		       	   valValue(mod(I, 2 ^Int N)),
+                           normalizingInt(integerType(N:Int), Es:ElemList)))
+
+    // todo: fix other rules to look like this
+
+    
+    rule normalizingInt(integerType(N:Int), elemCons(valValue(I:Int),Es:ElemList))
+                       => elemCons(valValue(mod(I, 2 ^Int N)),
                            normalizingInt(integerType(N:Int), Es:ElemList))
-    rule normalizingInt(integerType(N:Int), valValue(I:Int),Es:ElemList)
-                       => valValue(mod(I, 2 ^Int N)),
-                           normalizingInt(integerType(N:Int), Es:ElemList)
-    rule normalizingInt(integerType(N:Int), vectorValue(valValue(K:K),Es:ElemList))
-                       => vectorValue(valValue(K),
-                           normalizingInt(integerType(N:Int), vectorValue(Es:ElemList)))
+    rule normalizingInt(integerType(N:Int), vectorValue(elemCons(valValue(K:K),Es:ElemList)))
+                       => vectorValue(elemCons(
+		       	   valValue(K),
+                           normalizingInt(integerType(N:Int), vectorValue(Es:ElemList))))
          requires notBool isTheInt(K)
-    rule normalizingInt(integerType(N:Int), valValue(K:K),Es:ElemList)
-                       => valValue(K),
-                           normalizingInt(integerType(N:Int), vectorValue(Es:ElemList))
+    rule normalizingInt(integerType(N:Int), elemCons(valValue(K:K),Es:ElemList))
+                       => elemCons(valValue(K),
+                            normalizingInt(integerType(N:Int), vectorValue(Es:ElemList)))
          requires notBool isTheInt(K)
     rule normalizingInt(A:K, .ElemList) => .ElemList
     rule normalizingInt(A:K, K:K) => K
@@ -459,9 +465,11 @@ module LLVM-HELPERS
     rule plusInts(integerType(N:Int), vectorValue(Es:ElemList)
                                        , vectorValue(Es':ElemList))
                => vectorValue(plusInts(integerType(N:Int), Es, Es'))
-    rule plusInts(integerType(N:Int), (valValue(K:K),Es:ElemList)
-                                       , (valValue(K':K),Es':ElemList))
-               => valValue(plusInt(integerType(N:Int), K, K')),plusInts(integerType(N:Int), Es, Es')
+    rule plusInts(integerType(N:Int), elemCons(valValue(K:K),Es:ElemList)
+                                       , elemCons(valValue(K':K),Es':ElemList))
+               => elemCons(
+	       	  valValue(plusInt(integerType(N:Int), K, K')), 
+		  plusInts(integerType(N:Int), Es, Es'))
     rule plusInts(A:K, I1:K, I2:K) => plusInt(A, I1, I2)        [owise]
 
     syntax KItem ::= checkNuw(K, K)          [function]//type,  int value
@@ -475,14 +483,17 @@ module LLVM-HELPERS
     rule checkNuw(integerType(N:Int), .ElemList) => .ElemList
     rule checkNuw(integerType(N:Int), vectorValue(Es:ElemList))
             => vectorValue(checkNuw(integerType(N:Int), Es:ElemList))
-    rule checkNuw(integerType(N:Int), valValue(K:K), Es:ElemList)
-            => valValue(K), checkNuw(integerType(N:Int),  Es:ElemList)
+    rule checkNuw(integerType(N:Int), elemCons(valValue(K:K), Es:ElemList))
+            => elemCons(valValue(K),
+	       checkNuw(integerType(N:Int),  Es:ElemList))
          requires notBool isTheInt(K)
-    rule checkNuw(integerType(N:Int), valValue(V:Int), Es:ElemList)
-            => valValue(V), checkNuw(integerType(N:Int), Es:ElemList)
+    rule checkNuw(integerType(N:Int), elemCons(valValue(V:Int), Es:ElemList))
+            => elemCons(valValue(V),
+	       checkNuw(integerType(N:Int), Es:ElemList))
          requires V <Int (2 ^Int N)
-    rule checkNuw(integerType(N:Int), valValue(V:Int), Es:ElemList)
-            => valValue(poisonVal), checkNuw(integerType(N:Int), Es:ElemList)
+    rule checkNuw(integerType(N:Int), elemCons(valValue(V:Int), Es:ElemList))
+            => elemCons(valValue(poisonVal),
+	       checkNuw(integerType(N:Int), Es:ElemList))
          requires V >=Int (2 ^Int N)
 
     rule checkNsw(integerType(N:Int), I1:Int, I2:Int, V:Int) => poisonVal
@@ -500,23 +511,30 @@ module LLVM-HELPERS
     rule checkNsw(integerType(N:Int), I1:K, I2:K, .ElemList) => .ElemList
     rule checkNsw(integerType(N:Int), I1:K, I2:K, vectorValue(Es:ElemList))
             => vectorValue(checkNsw(integerType(N:Int), I1:K, I2:K, Es:ElemList))
-    rule checkNsw(integerType(N:Int), I1:K, I2:K, valValue(V:K), Es:ElemList)
-            => valValue(V), checkNsw(integerType(N:Int), I1:K, I2:K, Es:ElemList)
+    rule checkNsw(integerType(N:Int), I1:K, I2:K, elemCons(valValue(V:K), Es:ElemList))
+            => elemCons(valValue(V),
+	       checkNsw(integerType(N:Int), I1:K, I2:K, Es:ElemList))
          requires notBool isTheInt(V)
 
-    rule checkNsw(integerType(N:Int), vectorValue(valValue(I1:Int), Is1:ElemList),
-                    vectorValue(valValue(I2:Int), Is2:ElemList), valValue(V:Int), Es:ElemList)
-            => valValue(poisonVal), checkNsw(integerType(N:Int), vectorValue(valValue(I1:Int), Is1:ElemList),
-                                                vectorValue(valValue(I2:Int), Is2:ElemList), Es:ElemList)
+    rule checkNsw(integerType(N:Int), vectorValue(elemCons(valValue(I1:Int), Is1:ElemList)),
+                    vectorValue(elemCons(valValue(I2:Int), Is2:ElemList)),
+		    elemCons(valValue(V:Int), Es:ElemList))
+            => elemCons(valValue(poisonVal),
+	       checkNsw(integerType(N:Int), vectorValue(elemCons(valValue(I1:Int),
+	         Is1:ElemList)), vectorValue(elemCons(valValue(I2:Int), Is2:ElemList)),
+		 Es:ElemList))
          requires (I1 <Int (2 ^Int (N -Int 1)) andBool I2 <Int (2 ^Int (N -Int 1))
                     andBool (V >=Int (2 ^Int (N -Int 1))))
                   orBool (I1 >=Int (2 ^Int (N -Int 1)) andBool I2 >=Int (2 ^Int (N -Int 1))
                     andBool (V <Int (2 ^Int (N -Int 1))))
 
-    rule checkNsw(integerType(N:Int), vectorValue(valValue(I1:Int), Is1:ElemList),
-                    vectorValue(valValue(I2:Int), Is2:ElemList), valValue(V:Int), Es:ElemList)
-            => valValue(V), checkNsw(integerType(N:Int), vectorValue(valValue(I1:Int), Is1:ElemList),
-                                                vectorValue(valValue(I2:Int), Is2:ElemList), Es:ElemList)
+    rule checkNsw(integerType(N:Int), vectorValue(elemCons(valValue(I1:Int), Is1:ElemList)),
+                    vectorValue(elemCons(valValue(I2:Int), Is2:ElemList)),
+		    elemCons(valValue(V:Int), Es:ElemList))
+            => elemCons(valValue(V),
+	       checkNsw(integerType(N:Int), vectorValue(elemCons(valValue(I1:Int),
+	         Is1:ElemList)), vectorValue(elemCons(valValue(I2:Int), Is2:ElemList)),
+		 Es:ElemList))
          requires notBool ((I1 <Int (2 ^Int (N -Int 1)) andBool I2 <Int (2 ^Int (N -Int 1))
                     andBool (V >=Int (2 ^Int (N -Int 1))))
                   orBool (I1 >=Int (2 ^Int (N -Int 1)) andBool I2 >=Int (2 ^Int (N -Int 1))

@@ -3,11 +3,12 @@
 
 <tests>
   <test
-      definition="../semantics/llvm-semantics.k"
+      definition="../semantics/llvm-syntax.k"
       programs="."
       results="parsing-results"
       extension="ll"
       >
+      <kompile-option name="--syntax-module" value="LLVM-SYNTAX-NEW" />
     <all-programs>
       <krun-option name="--smt" value="none" />
       <krun-option name="--parser" value="./script" />

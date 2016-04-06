@@ -31,18 +31,19 @@ module LLVM-ABSTRACTSYNTAX
     syntax KResult ::= ElementResult
     rule val(K:KResult) => valValue(K) [structural]
 
-    //syntax KItem ::= ElemList
-    syntax ElemList ::= List{Element,","} [strict]
+    // syntax ElemList ::= List{Element,","} [strict, klabel(labelElemList)]
+    syntax ElemList ::= ".ElemList" | "elemCons" "(" K "," K ")"
+    
     syntax Int ::= lengthOfList(ElemList) [function]
 
     rule lengthOfList(.ElemList) => 0
-    rule lengthOfList(val(K:K),L:ElemList) => 1 +Int lengthOfList(L)
+    rule lengthOfList(elemCons(val(K:K),L:ElemList)) => 1 +Int lengthOfList(L)
 
     syntax KItem ::= elemListToK(ElemList) [function]
 
     rule elemListToK(.ElemList) => .K
-    rule elemListToK(val(K:K), L:ElemList) => K ~> elemListToK(L)
-    rule elemListToK(valValue(K:K), L:ElemList) => K ~> elemListToK(L)
+    rule elemListToK(elemCons(val(K:K), L:ElemList)) => K ~> elemListToK(L)
+    rule elemListToK(elemCons(valValue(K:K), L:ElemList)) => K ~> elemListToK(L)
 
     syntax KItem ::= instructionListToK(InstructionList) [function]
 
@@ -53,12 +54,13 @@ module LLVM-ABSTRACTSYNTAX
     syntax List ::= elemListToList(ElemList) [function]
 
     rule elemListToList(.ElemList) => .List
-    rule elemListToList(val(K:K), L:ElemList) => ListItem(K) elemListToList(L)
+    rule elemListToList(elemCons(val(K:K), L:ElemList)) => ListItem(K) elemListToList(L)
 
     syntax ElemList ::= combineElemList(ElemList, ElemList) [function]
 
     rule combineElemList(.ElemList,Bs:ElemList) => Bs
-    rule combineElemList((A:Element,As:ElemList),Bs:ElemList) => A,combineElemList(As,Bs)
+    rule combineElemList(elemCons(A:Element,As:ElemList),Bs:ElemList) =>
+    	 elemCons(A,combineElemList(As,Bs))
 
     syntax NonVoidType ::= arrayType(K, K) [strict] // inner type, length
                          | vectorType(K, K) [strict(1)]//inner type, length
@@ -72,7 +74,7 @@ module LLVM-ABSTRACTSYNTAX
 
     syntax TypeList ::= argListToTypeList(ArgList) [function]
 
-    rule argListToTypeList(argListUnit(.KList)) => .TypeList
+    rule argListToTypeList(argListUnit) => .TypeList
     rule argListToTypeList(...) => .TypeList
     rule argListToTypeList(argTypeTwo(T:Type, Pas:ParamAttrs))
                             => T
@@ -176,7 +178,8 @@ module LLVM-ABSTRACTSYNTAX
     syntax CaseResult ::= caseValue(K, K)
     syntax KResult ::= CaseResult
     syntax Case ::= CaseResult
-    syntax Cases ::= List{Case,","} [strict,klabel('caseCon)]
+    //syntax Cases ::= List{Case,","} [strict,klabel('caseCon)]
+    syntax Cases ::= ".Cases" | "caseCons" "(" Case "," Cases ")"
     //syntax KItem ::= Cases
     rule case(K:KResult, K':K) => caseValue(K, K') [structural] // may want K':K
 

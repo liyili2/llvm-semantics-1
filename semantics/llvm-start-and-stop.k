@@ -67,8 +67,8 @@ module LLVM-START-AND-STOP
 
     rule // argv & envp
         <k> initEnvStructures(Loc:Loc)
-            => write(arrayTypeValue('pointerType(i(8),, 0), 3), zeroinitializer, Loc)
-            ~> initEnvStructures'(Loc + sizeof(arrayTypeValue('pointerType(i(8),, 0), 3)))
+            => write(arrayTypeValue(pointerType(i(8),, 0), 3), zeroinitializer, Loc)
+            ~> initEnvStructures'(Loc + sizeof(arrayTypeValue(pointerType(i(8),, 0), 3)))
             ~> Loc
         ...</k>
 
