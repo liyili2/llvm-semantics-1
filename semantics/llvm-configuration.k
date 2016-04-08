@@ -48,7 +48,7 @@ module LLVM-CONFIGURATION
                     <moduleName color="orange"> name(labelVar, "") </moduleName>
                     <targetLayout> ""::StringName </targetLayout>
                     <targetTriple> ""::StringName </targetTriple>
-		    // TODO: make sure above should be explicitly StringName not String
+		    // TODO: make sure above is correct
                     <typedefs> .Map </typedefs>
                     <savedGlobals> .K </savedGlobals>
                     <globalFunVarCounter> 0 </globalFunVarCounter>

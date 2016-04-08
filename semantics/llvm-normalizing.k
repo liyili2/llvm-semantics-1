@@ -28,10 +28,10 @@ module LLVM-NORMALIZING
     rule typeCheckOp(X:SymbolicValueRef, IntOp:IntConstructors
                              Onw:OptNW Ty:Type V1:ValueRef,
                              V2:ValueRef Ins:InstructionMetadatas)
-           => typeCheckIntOp(X, Ty, val(V1), val(V2))
+           => typeCheckIntOp(X, Ty, elemCons(val(V1), elemCons(val(V2), .ElemList)))
     rule typeCheckOp(X:SymbolicValueRef, L:LogicalOps Ty:Type V1:ValueRef,
                   V2:ValueRef Ins:InstructionMetadatas)
-           => typeCheckIntOp(X, Ty, val(V1), val(V2))
+           => typeCheckIntOp(X, Ty, elemCons(val(V1), elemCons(val(V2), .ElemList)))
 
     rule <k> typeCheckIntOp(X:SymbolicValueRef, integerType(N:Int), L:ElemList)
               => typeCheckIntArgs(integerType(N), L) ...</k>
@@ -63,7 +63,7 @@ module LLVM-NORMALIZING
                     orBool getKLabel(Ty) =/=KLabel 'vectorTypeValue
 
     rule typeCheckIntArgs(T:Type, .ElemList) => .K
-    rule typeCheckIntArgs(T:Type, val(V:K),Vs:ElemList)
+    rule typeCheckIntArgs(T:Type, elemCons(val(V:K),Vs:ElemList))
                     => typeCheckIntArg(T, V) ~> typeCheckIntArgs(T, Vs)
 
     rule typeCheckIntArg(integerType(N:Int), I:Int) => .K
@@ -766,8 +766,8 @@ module LLVM-NORMALIZING
          => checkSingleAssignment(K1, K2 ~> basicBlock(N,K), S S')
 
     //have dealt with all instruction list.
-    rule checkSingleAssignmentInBlock(N:SymbolicValueRef, .InstructionList
-                               BB:K, K:K, S:Set)
+    rule checkSingleAssignmentInBlock(N:SymbolicValueRef, (.InstructionList
+                               BB):K, K:K, S:Set)
          => checkSingleAssignmentInBlock(N, BB, K, S)
 
     //deal with termination instructions.
@@ -1045,13 +1045,13 @@ create an abstract for fence and do the same for fence operation.
 
     //define checkSingleAssignment
     rule checkSingleAssignment(.K, K:K, S:Set) => funBegin(K)
-    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
-//    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
+//    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
+    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
                                 BB:BBTerminatorInstruction BBL:BasicBlockList, K:K, S:Set)
          => checkSingleAssignmentInBlock(makeVarFromLabel(L),Ins BB, .K, S)
            ~> checkSingleAssignment(BBL, K, S:Set)
-    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
-//    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
+//    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
+    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
                                 BB:BBTerminatorInstruction, K:K, S:Set)
          => checkSingleAssignmentInBlock(makeVarFromLabel(L),Ins BB, .K, S) ~>
             checkSingleAssignment(.K, K, S)

@@ -23,10 +23,10 @@ module LLVM-REGISTERS
     // TODO using constructors in the AST instead of matching on a string
     rule [lookup-register]:
         <k> name(localVar, S:String) => V ...</k>
-        <registers>... name(localVar, S:String) |-> V:K ...</registers>
+        <registers>... name(localVar, S:String) |-> V ...</registers>
 
     rule [lookup-global-register]:
         <k> name(globalVar, S:String) => V ...</k>
-        <globalRegisters>... name(globalVar, S:String) |-> V:K ...</globalRegisters>
+        <globalRegisters>... name(globalVar, S:String) |-> V ...</globalRegisters>
 
 endmodule

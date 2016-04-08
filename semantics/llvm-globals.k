@@ -50,8 +50,8 @@ module LLVM-GLOBALS
                 , functionTypeValue(TyK:K, K':K), Init:K) ~> K
             => .K
         </k>
-        <output>... .List => ListItem("error: invalid type for global variable"::String) </output>
-	// TODO: make sure String is correct for that
+        <output>... .List => ListItem("error: invalid type for global variable"::StringName) </output>
+	// TODO: make sure StringName is correct for that
 
     rule
         <k> preInit(X:SymbolicValueRef, Loc:Loc, initializer(TK:K, K:K)) => .K ...</k>

@@ -20,13 +20,13 @@ module LLVM-START-AND-STOP
         <k> callMain
             => call(i(32), callee(values(name(globalVar, "__libc_start_main_0")),
                 arguments(
-                    val(funptr(name(globalVar, "main"))), // address of main
-                    (val(0), // argc
-                    (val(alloca(i(8), 8, 'alignEmpty(.KList))), // argv
-                    (val('nullOfConstValueRef(.KList)), // init
-                    (val('nullOfConstValueRef(.KList)), // fini
-                    val('nullOfConstValueRef(.KList))// ldso_fini
-                )))))
+                    elemCons(val(funptr(name(globalVar, "main"))), // address of main
+                    elemCons(val(0), // argc
+                    elemCons(val(alloca(i(8), 8, alignEmpty)), // argv
+                    elemCons(val(nullOfConstValueRef), // init
+                    elemCons(val(nullOfConstValueRef), // fini
+                    elemCons(val(nullOfConstValueRef), .ElemList)// ldso_fini
+                ))))))
             ))
         </k>
         <currModule> ModName:SymbolicValueRef </currModule>
@@ -42,17 +42,17 @@ module LLVM-START-AND-STOP
         <k> callMain
             => call(i(32), callee(values(name(globalVar, "__libc_start_main_2")),
                 arguments((
-                    val(funptr(name(globalVar, "main"))), // address of main
-                    val(0), // argc
-                    val(
+                    elemCons(val(funptr(name(globalVar, "main"))), // address of main
+                    elemCons(val(0), // argc
+                    elemCons(val(
                         initEnvStructures(alloca(i(8),
-                         (sizeof('pointerType(i(8),, 0)) *Int 3) +Int (sizeof(i(64)) *Int 38)
-                                             , 'alignEmpty(.KList)))
+                         (sizeof(pointerType(i(8),, 0)) *Int 3) +Int (sizeof(i(64)) *Int 38)
+                                             , alignEmpty))
                     ),
-                    val('nullOfConstValueRef(.KList)), // init
-                    val('nullOfConstValueRef(.KList)), // fini
-                    val('nullOfConstValueRef(.KList)) // ldso_fini
-                ))
+                    elemCons(val(nullOfConstValueRef), // init
+                    elemCons(val(nullOfConstValueRef), // fini
+                    elemCons(val(nullOfConstValueRef), .ElemList) // ldso_fini
+                )))))))
             ))
         </k>
         <currModule> ModName:SymbolicValueRef </currModule>
@@ -79,14 +79,14 @@ module LLVM-START-AND-STOP
 
     rule [terminate-exit]:
         <T>...
-            <k> I:Int => call(void, callee(values(name(globalVar, "exit")), arguments(val(I)))) </k>
+            <k> I:Int => call(void, callee(values(name(globalVar, "exit")), arguments(elemCons(val(I),.ElemList)))) </k>
         ...</T>
 
     // TODO it's not clear whether this belongs here or in SYSCALLS-IMPL
     //output buffer need to in a final state.
     rule
         <T>...
-            <k> 'sys-exit-group(I:Int,, _) ...</k>
+            <k> sys-exit-group(elemCons(I:Int, _)) ...</k>
             <output> .List </output>
         ...</T>
         =>

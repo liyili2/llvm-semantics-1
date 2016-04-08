@@ -908,8 +908,8 @@ module LLVM-SYSCALLS-PREPROCESS
     imports LLVM-SYSCALLS-SYNTAX
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "__syscall")), (valValue(N:Int), L:ElemList)))
-            => (syscallHandler(N))(L)
+        <k> call(_, calleeValue(funptr(name(globalVar, "__syscall")), (valValue(4), L:ElemList)))
+            => (syscallHandler(N,L))
         ...</k>
 endmodule
 

@@ -15,75 +15,157 @@ module LLVM-PREPROCESSING
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
     imports LLVM-CONFIGURATION
+    imports SET
 
     syntax KItem ::= preModule(Module, K, K, K, K, K, K, K, K)
     syntax KItem ::= stringConstruct(String)
     syntax KItem ::= preFunctionDecl(FunctionProto) [function]
     
     //TODO: considering the semantics for Prefix data and Prologue data, which is different from other modifiers
+    
     rule preFunctionDecl(Ex:ExternalLinkage Vi:OptVisibilityStyle
                          Cl:OptCallingConv Re:RetAttrs Ty:Type Gl:GlobalName
                          ( Ars:ArgList ) Un:OptUnnamedAddr Fu:FuncAttrs Se:OptSection
                          Co:OptComdat Al:OptAlign Gc:OptGC Pf:OptPrefix Pl:OptPrologue)
-          => functionDecl(formSet(Ex) formSet(Vi) formSet(Cl)
-                         formSet(Re) formSet(Un) formSet(Fu) formSet(Se)
-                         formSet(Co) formSet(Al) formSet(Gc) formSet(Pf) formSet(Pl)
+          => functionDecl((((((((((((formSet(Ex) formSet(Vi)) formSet(Cl))
+                         formSet(Re)) formSet(Un)) formSet(Fu)) formSet(Se))
+                         formSet(Co)) formSet(Al)) formSet(Gc)) formSet(Pf)) formSet(Pl))
                          ,addNameToString(Ty),addNameToString(Gl),arguments(formElemList(Ars)))
+			
     rule preFunctionDecl(Dll:OptDllStorageClass Vi:OptVisibilityStyle
                          Cl:OptCallingConv Re:RetAttrs Ty:Type Gl:GlobalName
                          ( Ars:ArgList ) Un:OptUnnamedAddr Fu:FuncAttrs Se:OptSection
                          Co:OptComdat Al:OptAlign Gc:OptGC Pf:OptPrefix Pl:OptPrologue)
-          => functionDecl(formSet(Dll) formSet(Vi) formSet(Cl)
-                          formSet(Re) formSet(Un) formSet(Fu) formSet(Se)
-                          formSet(Co) formSet(Al) formSet(Gc) formSet(Pf) formSet(Pl)
+          => functionDecl(((((((((((((formSet(Dll)) formSet(Vi)) formSet(Cl))
+                          formSet(Re)) formSet(Un)) formSet(Fu)) formSet(Se))
+                          formSet(Co)) formSet(Al)) formSet(Gc)) formSet(Pf)) formSet(Pl))
                          ,addNameToString(Ty),addNameToString(Gl),arguments(formElemList(Ars)))
+
 
     syntax KItem ::= preFunctionDef(Function) [function]
 
+
     rule preFunctionDef(Li:OptLinkage Vi:OptVisibilityStyle Dll:OptDllStorageClass
                         Cl:OptCallingConv Re:RetAttrs Ty:Type Gl:GlobalName
-                         (Ars:ArgList) Un:OptUnnamedAddr Fu:FuncAttrs Se:OptSection
+                         ( Ars:ArgList ) Un:OptUnnamedAddr Fu:FuncAttrs Se:OptSection
                           Co:OptComdat Al:OptAlign Gc:OptGC Pf:OptPrefix Pr:OptPrologue
-                        {Bl:BasicBlockList})
-         => functionDef(formSet(Li) formSet(Vi) formSet(Dll) formSet(Cl) formSet(Re)
-                         formSet(Un) formSet(Fu)
-                        formSet(Se) formSet(Co) formSet(Al) formSet(Gc) formSet(Pf) formSet(Pr)
+                        { Bl:BasicBlockList })
+         => functionDef((((((((((((((formSet(Li)) formSet(Vi)) formSet(Dll)) formSet(Cl)) formSet(Re))
+                         formSet(Un)) formSet(Fu))
+                        formSet(Se)) formSet(Co)) formSet(Al)) formSet(Gc)) formSet(Pf)) formSet(Pr))
                          ,addNameToString(Ty),addNameToString(Gl),arguments(formElemList(Ars)),Bl)
 
-    syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [function]
+
+syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [function]
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
-          H:K, 'sectionComdatAndAlignEmpty(.KList))
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H)
+          H:K, sectionComdatAndAlignEmpty)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H), .ElemList))))))))
+	    
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
           H:K, , section S:StringName)
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H)
-            ,val(section S:StringName)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(section S:StringName), .ElemList)))))))))
+
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
           H:K, , Al:Align)
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H),val(Al)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(Al), .ElemList)))))))))
+
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
-          H:K, , Co:Comdat)
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H),val(Co)
+          H:K, Co:Comdat)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(Co), .ElemList)))))))))
+
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
           H:K, , Co:Comdat , Al:Align)
-         => val(A),val(B),val(C),val(D),val(E),val(F)
-           ,val(G),val(H),val(Co),val(Al)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(Co),
+	    elemCons(val(Al), .ElemList))))))))))
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
           H:K, , section S:StringName , Al:Align)
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H)
-            ,val(section S:StringName),val(Al)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(section S:StringName), .ElemList)))))))))
+	    
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
           H:K, , Al:Align , section S:StringName)
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H)
-            ,val(section S:StringName),val(Al)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(section S:StringName),
+	    elemCons(val(Al), .ElemList))))))))))
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
           H:K, , section S:StringName , Co:Comdat)
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H)
-            ,val(section S:StringName),val(Co)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(section S:StringName),
+	    elemCons(val(Co), .ElemList))))))))))	    
     rule dealWithSectionComdatAndAlign(A:K, B:K, C:K, D:K, E:K, F:K, G:K,
           H:K, , section S:StringName , Co:Comdat , Al:Align)
-         => val(A),val(B),val(C),val(D),val(E),val(F),val(G),val(H)
-            ,val(section S:StringName),val(Co),val(Al)
+         => elemCons(val(A),
+	    elemCons(val(B),
+	    elemCons(val(C),
+	    elemCons(val(D),
+	    elemCons(val(E),
+	    elemCons(val(F),
+	    elemCons(val(G),
+	    elemCons(val(H),
+	    elemCons(val(section S:StringName),
+	    elemCons(val(Co),
+	    elemCons(val(Al), .ElemList)))))))))))
+
 
 
     rule <k> DefList:Module => preModule(DefList, .K, .K, .K, .K, .K, .K, .K, .K) ...</k>
@@ -264,7 +346,7 @@ module LLVM-PREPROCESSING
     rule <k> preModule(attributes Av:AttributeGroupId = { .GroupAttrs } DL:Module, ModuleAsms:K
            , TargetLayout:K, TargetTriple:K
            , MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K) ~>K:K => .K </k>
-         <output>... .List => ListItem("error: attribute group has no attributes") </output>
+         <output>... .List => ListItem("error: attribute group has no attributes"::StringName) </output>
 
     rule <k> preModule(attributes Av:AttributeGroupId = { Gas:GroupAttrs } DL:Module, ModuleAsms:K
            , TargetLayout:K, TargetTriple:K
@@ -287,7 +369,7 @@ module LLVM-PREPROCESSING
            , MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K) ~> K:K
             => .K </k>
          <attributeGroups> M:Map </attributeGroups>
-         <output>... .List => ListItem("error: Metadata id is already used") </output>
+         <output>... .List => ListItem("error: Metadata id is already used"::StringName) </output>
          when I in keys(M)
 
     rule preModule(N:MetadataVar = ! { Mis:MetadataInts } DL:Module
@@ -307,7 +389,7 @@ module LLVM-PREPROCESSING
          when allInMap(Mis,M)
     rule <k> metaVar(N:MetadataVar, Mis:MetadataInts) ~> K:K => .K </k>
          <attributeGroups> M:Map </attributeGroups>
-         <output>... .List => ListItem("error: use of undefined metadata ''") </output>
+         <output>... .List => ListItem("error: use of undefined metadata ''"::StringName) </output>
          when notBool allInMap(Mis,M)
 
     syntax Bool ::= allInMap(MetadataInts, Map) [function]
