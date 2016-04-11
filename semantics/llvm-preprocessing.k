@@ -50,9 +50,7 @@ module LLVM-PREPROCESSING
                          ( Ars:ArgList ) Un:OptUnnamedAddr Fu:FuncAttrs Se:OptSection
                           Co:OptComdat Al:OptAlign Gc:OptGC Pf:OptPrefix Pr:OptPrologue
                         { Bl:BasicBlockList })
-         => functionDef((((((((((((((formSet(Li)) formSet(Vi)) formSet(Dll)) formSet(Cl)) formSet(Re))
-                         formSet(Un)) formSet(Fu))
-                        formSet(Se)) formSet(Co)) formSet(Al)) formSet(Gc)) formSet(Pf)) formSet(Pr))
+         => functionDef((((((((((((((formSet(Li)) formSet(Vi)) formSet(Dll)) formSet(Cl)) formSet(Re)) formSet(Un)) formSet(Fu)) formSet(Se)) formSet(Co)) formSet(Al)) formSet(Gc)) formSet(Pf)) formSet(Pr))
                          ,addNameToString(Ty),addNameToString(Gl),arguments(formElemList(Ars)),Bl)
 
 
@@ -216,8 +214,8 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
             TargetTriple:K, MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K,
                Typedefs:K, GlobalVars ~> globalVariable(name(globalVar, substrString(#tokenToString(N),1
-               ,lengthString(#tokenToString(N)))),formSet(Ex) formSet(Vi)
-                          formSet(Dll) formSet(Th) formSet(Ad) formSet(Un) formSet(Exi) formSet(Gl) formSet(Sca)
+               ,lengthString(#tokenToString(N)))),
+	       (((((((((formSet(Ex)) formSet(Vi)) formSet(Dll)) formSet(Th)) formSet(Ad)) formSet(Un)) formSet(Exi)) formSet(Gl)) formSet(Sca))
               ,Ty,undef), Aliases:K, Functions:K)
 
     rule <k> preModule(N:GlobalValID = Ex:ExternalLinkage Vi:OptVisibilityStyle
@@ -227,8 +225,8 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
             TargetTriple:K, MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K,
                Typedefs:K, GlobalVars ~> globalVariable(name(globalVar, substrString(#tokenToString(N),1
-               ,lengthString(#tokenToString(N)))),formSet(Ex) formSet(Vi)
-                          formSet(Dll) formSet(Th) formSet(Ad) formSet(Un) formSet(Exi) formSet(Gl) formSet(Sca)
+               ,lengthString(#tokenToString(N)))),
+	       (((((((((formSet(Ex)) formSet(Vi)) formSet(Dll)) formSet(Th)) formSet(Ad)) formSet(Un)) formSet(Exi)) formSet(Gl)) formSet(Sca))
               ,Ty,undef), Aliases:K, Functions:K)
          ...</k><globalFunVarCounter> Count:Int => Count +Int 1 </globalFunVarCounter>
          when String2Int(substrString(#tokenToString(N),1
@@ -251,7 +249,7 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
             TargetTriple:K, MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K,
                Typedefs:K, GlobalVars ~> globalVariable(name(globalVar, Int2String(Count))
-             ,formSet(Ex) formSet(Vi) formSet(Dll) formSet(Th) formSet(Ad) formSet(Un) formSet(Exi) formSet(Gl) formSet(Sca)
+             ,(((((((((formSet(Ex)) formSet(Vi)) formSet(Dll)) formSet(Th)) formSet(Ad)) formSet(Un)) formSet(Exi)) formSet(Gl)) formSet(Sca))
               ,Ty,undef), Aliases:K, Functions:K)
          ...</k><globalFunVarCounter> Count:Int => Count +Int 1 </globalFunVarCounter>
 
@@ -263,8 +261,8 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
                     TargetTriple:K, MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K,
                Typedefs:K, GlobalVars ~> globalVariable(name(globalVar, substrString(#tokenToString(N),1
-               ,lengthString(#tokenToString(N)))),formSet(Ex) formSet(Vi)
-               formSet(Dll) formSet(Th) formSet(Ad) formSet(Un) formSet(Exi) formSet(Gl) formSet(Sca)
+               ,lengthString(#tokenToString(N)))),
+	       (((((((((formSet(Ex)) formSet(Vi)) formSet(Dll)) formSet(Th)) formSet(Ad)) formSet(Un)) formSet(Exi)) formSet(Gl)) formSet(Sca))
               ,Ty,Vl), Aliases:K, Functions:K)
 
     rule <k> preModule(N:GlobalValID = Ex:NonExternalLinkage Vi:OptVisibilityStyle
@@ -274,8 +272,8 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
             TargetTriple:K, MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K,
                Typedefs:K, GlobalVars ~> globalVariable(name(globalVar, substrString(#tokenToString(N),1
-               ,lengthString(#tokenToString(N)))),formSet(Ex) formSet(Vi)
-               formSet(Dll) formSet(Th) formSet(Ad) formSet(Un) formSet(Exi) formSet(Gl) formSet(Sca)
+               ,lengthString(#tokenToString(N)))),
+	       (((((((((formSet(Ex)) formSet(Vi)) formSet(Dll)) formSet(Th)) formSet(Ad)) formSet(Un)) formSet(Exi)) formSet(Gl)) formSet(Sca))
               ,Ty,Vl), Aliases:K, Functions:K)
          ...</k><globalFunVarCounter> Count:Int => Count +Int 1 </globalFunVarCounter>
          when String2Int(substrString(#tokenToString(N),1
@@ -298,7 +296,7 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
             TargetTriple:K, MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K,
                Typedefs:K, GlobalVars ~> globalVariable(name(globalVar, Int2String(Count))
-             ,formSet(Ex) formSet(Vi) formSet(Dll) formSet(Th) formSet(Ad) formSet(Un) formSet(Exi) formSet(Gl) formSet(Sca)
+             ,(((((((((formSet(Ex)) formSet(Vi)) formSet(Dll)) formSet(Th)) formSet(Ad)) formSet(Un)) formSet(Exi)) formSet(Gl)) formSet(Sca))
               ,Ty,Vl), Aliases:K, Functions:K)
          ...</k><globalFunVarCounter> Count:Int => Count +Int 1 </globalFunVarCounter>
 
@@ -318,7 +316,8 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
                      , ModuleAsms:K, TargetLayout:K,TargetTriple:K
                      , MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K, Typedefs:K
-           , GlobalVars, Aliases:K ~> alias(formSet(Ex) formSet(Vi) formSet(Exi) formSet(Th) formSet(Un)
+           , GlobalVars, Aliases:K ~> alias(
+	   (((((formSet(Ex)) formSet(Vi)) formSet(Exi)) formSet(Th)) formSet(Un))
            ,name(globalVar, substrString(#tokenToString(N),1
                ,lengthString(#tokenToString(N)))),Al), Functions:K)
 
@@ -328,7 +327,8 @@ syntax ElemList ::= dealWithSectionComdatAndAlign(K, K, K, K, K, K, K, K, K) [fu
             TargetTriple:K, MetaVars:K, Typedefs:K, GlobalVars:K, Aliases:K, Functions:K)
          => preModule(DL:Module, ModuleAsms:K, TargetLayout:K, TargetTriple:K, MetaVars:K,
                Typedefs:K, GlobalVars, Aliases:K
-                    ~> alias(formSet(Ex) formSet(Vi) formSet(Exi) formSet(Th) formSet(Un)
+                    ~> alias(
+		    (((((formSet(Ex)) formSet(Vi)) formSet(Exi)) formSet(Th)) formSet(Un))
                ,name(globalVar, substrString(#tokenToString(N),1
                ,lengthString(#tokenToString(N)))),Al), Functions:K)
          ...</k><globalFunVarCounter> Count:Int => Count +Int 1 </globalFunVarCounter>

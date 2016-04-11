@@ -318,7 +318,7 @@ module LLVM-HELPERS-SPLIT-BYTES
         when NumBytes >Int 0
 
     rule
-        <k> splitPointerBytes((zeroinitializer => 'nullOfConstValueRef(.KList)), _) ...</k>
+        <k> splitPointerBytes((zeroinitializer => nullOfConstValueRef), _) ...</k>
     rule
         <k> splitPointerBytes(Loc:Loc, NumBytes:Int)
             => splitPointerBytes'(Loc:Loc, NumBytes, 0, .List)
@@ -477,7 +477,7 @@ module LLVM-MEMORY
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
 
-    syntax KItem ::= "nextSym" Loc [function]
+    syntax Loc ::= "nextSym" Loc [function]
 
     rule nextSym loc(N:Int, 0) => loc(N:Int +Int 1, 0)
 
@@ -488,7 +488,7 @@ module LLVM-MEMORY
     //use to alloc the memory for gloable variables.
     rule
         <k> globalAlloca(Type:KResult, N:Int, Al:OptAlign)
-                          => value(pointerTypeValue(Type, 'addrEmpty(.KList)) ,Loc) ...</k>
+                          => value(pointerTypeValue(Type, addrEmpty) ,Loc) ...</k>
         (.Bag =>
             <object>...
                 <basePtr> base(Loc) </basePtr>
@@ -500,7 +500,7 @@ module LLVM-MEMORY
 
     rule
         <k> alloca(Type:KResult, N:Int, Al:OptAlign)
-                          => value(pointerTypeValue(Type, 'addrEmpty(.KList)) ,Loc) ...</k>
+                          => value(pointerTypeValue(Type, addrEmpty) ,Loc) ...</k>
         (.Bag =>
             <object>...
                 <basePtr> base(Loc) </basePtr>
@@ -541,7 +541,7 @@ module LLVM-MEMORY
     rule writeBytes(listK(.List), _) => .K
 
     rule
-        <k> load('pointerType(TyK:K,, A:K), Loc:Loc)
+        <k> load(pointerType(TyK:K, A:K), Loc:Loc)
             => read(TyK:K, Loc:Loc)
         ...</k>
 
@@ -557,7 +557,7 @@ module LLVM-MEMORY
             => readBytes'(Len:Int -Int 1, loc(Base:Int, Offset:Int) + 1, (L:List ListItem(V:KResult)))
         ...</k>
         <basePtr> Base:Int </basePtr>
-        <bytes>... Offset |-> V:KResult ...</bytes>
+        <bytes>... Offset |-> V ...</bytes>
         when Len:Int >Int 0
 
     rule readBytes'(0, _, L:List)
@@ -787,40 +787,50 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
         // TODO why doesn't this work?
         // <k> Call(_, Callee(funptr(Name(globalVar, S:String)), listK(L:KList)))
             // => 'memcpy`(_`,_`,_`,_`,_`)(L)
-        <k> call(_, calleeValue(funptr(name(globalVar, S:String)), (valValue(V1:KResult),
-                   valValue(V2:KResult), valValue(V3:KResult), valValue(V4:KResult), valValue(V5:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, S:String)),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult),
+		    elemCons(valValue(V3:KResult),
+		    elemCons(valValue(V4:KResult),
+		    elemCons(valValue(V5:KResult), .ElemList)))))))
             => memcpy(V1, V2, V3, V4, V5)
         ...</k>
         when substrString(S, 0, 12) ==String "llvm.memcpy."
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, S:String)), (valValue(V1:KResult),
-                  valValue(V2:KResult), valValue(V3:KResult), valValue(V4:KResult), valValue(V5:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, S:String)),
+	    	    elemCons(valValue(V1:KResult),
+                    elemCons(valValue(V2:KResult),
+		    elemCons(valValue(V3:KResult),
+		    elemCons(valValue(V4:KResult),
+		    elemCons(valValue(V5:KResult), .ElemList)))))))
             => memset(V1, V2, V3, V4, V5)
         ...</k>
         when substrString(S, 0, 12) ==String "llvm.memset."
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.start")), (valValue(V1:KResult),
-                   valValue(V2:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.start")),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult), .ElemList))))
             => lifetimeStart(V1, V2)
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_0")), (valValue(V1:KResult),
-                   Vl:ElemList)))
+        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_0")),
+	    	    elemCons(valValue(V1:KResult), Vl:ElemList)))
             => call(i(32), callee(V1,arguments(.ElemList)))
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_2")), (valValue(V1:KResult),
-                   Vl:ElemList)))
+        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_2")),
+	    	    elemCons(valValue(V1:KResult), Vl:ElemList)))
             => call(i(32), callee(V1,arguments(.ElemList)))
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.end")), (valValue(V1:KResult),
-                  valValue(V2:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.end")),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult), .ElemList))))
             => lifetimeEnd(V1, V2)
         ...</k>
 
@@ -830,8 +840,9 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.va_copy")), (valValue(V1:KResult),
-                  valValue(V2:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.va_copy")),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult), .ElemList))))
             => vaCopy(V1, V2)
         ...</k>
 
@@ -859,7 +870,7 @@ module LLVM-STANDARD-LIBRARY
     // memcpy
     rule
         <k> memcpy(Dest:Loc, Src:Loc, Len:Int, K1:K, K2:K)
-            => store(byteType, load('pointerType(byteType,, 0), Src), Dest)
+            => store(byteType, load(pointerType(byteType,, 0), Src), Dest)
             ~> memcpy(Dest + 1, Src + 1, Len -Int 1, K1, K2)
         ...</k>
         when Len >Int 0
@@ -908,7 +919,8 @@ module LLVM-SYSCALLS-PREPROCESS
     imports LLVM-SYSCALLS-SYNTAX
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "__syscall")), (valValue(4), L:ElemList)))
+        <k> call(_, calleeValue(funptr(name(globalVar, "__syscall")),
+		    elemCons(valValue(4), L:ElemList)))
             => (syscallHandler(N,L))
         ...</k>
 endmodule
@@ -922,33 +934,35 @@ module LLVM-SYSCALLS
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
 
-    rule <k> 'sys-ioctl(_) => 0 ...</k>
-    rule <k> 'sys-rt-sigprocmask(_) => 0 ...</k>
-    rule <k> 'sys-gettid(_) => 0 ...</k>
+    rule <k> sys-ioctl(_) => 0 ...</k>
+    rule <k> sys-rt-sigprocmask(_) => 0 ...</k>
+    rule <k> sys-gettid(_) => 0 ...</k>
 
     //there might be a problem here. about the sort of brk cell.
     rule
-        <k> 'sys-brk(ptrToIntOfLoc(_,Loc:Loc),, _) => Brk ...</k>
+        <k> sys-brk(elemCons(ptrToIntOfLoc(_,Loc:Loc), _:ElemList)) => Brk ...</k>
         <brk> Brk:Loc </brk>
-        when Loc ==K 'nullOfConstValueRef(.KList)
+        when Loc ==K nullOfConstValueRef
 
 
     // TODO krun should provide this value
-    rule <k> 'sys-getpid(_) => 10000 ...</k>
+    rule <k> sys-getpid(_) => 10000 ...</k>
 
     syntax KItem ::= printString(K) [strict]
     syntax KItem ::= readString(K, K)
     syntax KItem ::= "readString'" "(" K "," K "," K ")"
 
     rule
-        <k> 'sys-write(FileDesc:Int,, ptrToIntOfLoc(_, Loc:Loc),, Len:Int,, _)
+        <k> sys-write(elemCons(FileDesc:Int,
+		elemCons(ptrToIntOfLoc(_, Loc:Loc),
+		elemCons((Len:Int), _:ElemList))))
             => printString(readString(Loc, Len))
         ...</k>
         when Len >=Int 0
 
     rule
         <k> readString(Loc:Loc, Len:Int)
-            => readString'(Loc, Len, "")
+            => readString'(Loc, Len, ""::StringName)
         ...</k>
         when Len >=Int 0
 

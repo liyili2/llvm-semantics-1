@@ -22,7 +22,7 @@ module LLVM-DECLARATIONS
 
     // TODO: semantic design pattern: assignment rule
     rule
-        <k> alias(Mod:K, X:SymbolicValueRef, K:K) => . ...</k>
+        <k> alias(Mod:Set, X:SymbolicValueRef, K:K) => . ...</k>
         <globalRegisters> Map:Map => Map[X <- K] </globalRegisters>
 
     // TODO KListToK module sections
@@ -53,8 +53,8 @@ module LLVM-DECLARATIONS
         <typedefs> M:Map => M[X <- UnresolvedType] </typedefs>
 
     rule [typedef-lookup]:
-        <k> 'namedType(X:LocalName) => UnresolvedType ...</k>
-        <typedefs>... X |-> UnresolvedType:K ...</typedefs>
+        <k> namedType(X:LocalName) => UnresolvedType ...</k>
+        <typedefs>... X |-> UnresolvedType ...</typedefs>
 
     // TODO: hack because hybrids don't seem to be working
     rule Fields(L:ElemList) => L

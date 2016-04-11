@@ -53,12 +53,12 @@ module LLVM-NORMALIZING
     rule <k> typeCheckIntOp(X:SymbolicValueRef,
                vectorTypeValue(Ty:KResult, I:Int), L:ElemList) ~> K
               => .K </k>
-         <output>... .List => ListItem("error: invalid operand type for instruction") </output>
+         <output>... .List => ListItem("error: invalid operand type for instruction"::StringName) </output>
          requires getKLabel(Ty) =/=KLabel 'integerType
 
     rule <k> typeCheckIntOp(X:SymbolicValueRef, Ty:KResult, L:ElemList) ~> K
               => .K </k>
-         <output>... .List => ListItem("error: invalid operand type for instruction") </output>
+         <output>... .List => ListItem("error: invalid operand type for instruction"::StringName) </output>
          requires getKLabel(Ty) =/=KLabel 'integerType
                     orBool getKLabel(Ty) =/=KLabel 'vectorTypeValue
 
@@ -73,7 +73,7 @@ module LLVM-NORMALIZING
          <funModuleName> ModName </funModuleName>
          <currFunction> FunName:SymbolicValueRef </currFunction>
          <functionName> FunName </functionName>
-         <varTypes>... addNameToString(X) |-> T:K ...</varTypes>
+         <varTypes>... addNameToString(X) |-> T ...</varTypes>
 
     rule typeCheckIntArg(vectorTypeValue(integerType(N:Int), I:Int), < T':Type V:ValueRef, R:ReturnedVal >)
          => typeCheckIntArg(integerType(N:Int), I, < R >, T', V)
@@ -100,49 +100,49 @@ module LLVM-NORMALIZING
     //define illform situations for type checking of integer operators.
     rule <k> typeCheckIntArg(integerType(N:Int), N':Int, A:K, T:KResult, K:K) ~> K'
          => .K </k>
-         <output>... .List => ListItem("error: constant expression type mismatch") </output>
+         <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires (notBool isTheInt(K)) andBool (notBool isTheBool(K))
                    andBool (notBool isTheLocalName(K))
 
     rule <k> typeCheckIntArg(integerType(N:Int), I:Int, A:K, integerType(N':Int), B:Bool) ~> K
              => .K </k>
-         <output>... .List => ListItem("error: constant expression type mismatch") </output>
+         <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires N =/=Int 1 orBool N' =/=Int 1
 
     rule <k> typeCheckIntArg(T:K, I:Int, < .ReturnedVal >) ~> K => .K </k>
-         <output>... .List => ListItem("error: constant expression type mismatch") </output>
+         <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires I >Int 0
     rule <k> typeCheckIntArg(T:K, 0, < R:ReturnedVal >) ~> K => .K </k>
-         <output>... .List => ListItem("error: constant expression type mismatch") </output>
+         <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires R =/=K .ReturnedVal
 
     rule <k> typeCheckIntArg(vectorTypeValue(T:K, I:Int), < R:ReturnedVal >) ~> K
          => .K </k>
-         <output>... .List => ListItem("error: instruction requires integer or integer vector operands") </output>
+         <output>... .List => ListItem("error: instruction requires integer or integer vector operands"::StringName) </output>
          requires getKLabel(T) =/=KLabel 'integerType
     rule <k> typeCheckIntArg(vectorTypeValue(integerType(N:Int), 0), < R:ReturnedVal >) ~> K
          => .K </k>
-         <output>... .List => ListItem("error: zero element vector is illegal") </output>
+         <output>... .List => ListItem("error: zero element vector is illegal"::StringName) </output>
     rule <k> typeCheckIntArg(vectorTypeValue(integerType(N:Int), I:Int), < R:ReturnedVal >) ~> K
          => .K </k>
-         <output>... .List => ListItem("error: expected number in address space") </output>
+         <output>... .List => ListItem("error: expected number in address space"::StringName) </output>
          requires I <Int 0
     rule <k> typeCheckIntArg(vectorTypeValue(integerType(N:Int), I:Int), < R:ReturnedVal >) ~> K
          => .K </k>
-         <output>... .List => ListItem("error: expected type") </output>
+         <output>... .List => ListItem("error: expected type"::StringName) </output>
          requires N <=Int 0
     rule <k> typeCheckIntArg(vectorTypeValue(integerType(N:Int), I:Int), < .ReturnedVal >) ~> K
          => .K </k>
-         <output>... .List => ListItem("error: constant vector must not be empty") </output>
+         <output>... .List => ListItem("error: constant vector must not be empty"::StringName) </output>
          requires I >Int 0
     rule <k> typeCheckIntArg(Ty:K, I:Int) ~> K => .K </k>
-         <output>... .List => ListItem("error: integer constant must have integer type") </output>
+         <output>... .List => ListItem("error: integer constant must have integer type"::StringName) </output>
          requires getKLabel(Ty) =/=KLabel 'integerType
     rule <k> typeCheckIntArg(Ty:K, B:Bool) ~> K => .K </k>
-         <output>... .List => ListItem("error: constant expression type mismatch") </output>
+         <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires getKLabel(Ty) =/=KLabel 'integerType
     rule <k> typeCheckIntArg(integerType(N:Int), B:Bool) ~> K => .K </k>
-         <output>... .List => ListItem("error: constant expression type mismatch") </output>
+         <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires N =/=K 1
     rule <k> typeCheckIntArg(T:K, X:LocalName) ~> K => .K </k>
          <output>... .List => ListItem("error: "+String "'" +String
@@ -940,7 +940,7 @@ module LLVM-NORMALIZING
           when String2Int(substrString(#tokenToString(Var),1
                ,lengthString(#tokenToString(Var)))) =/=Int I
 
-    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, In:InstVal Ins:InstructionList
+    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, (In:InstVal) Ins:InstructionList
                                BB:BBTerminatorInstruction, K:K, S:Set)
          => typeCheckOp(name(localVar, Int2String(I)), In) ~> checkSingleAssignmentInBlock(N, Ins BB, K
                       ~> assign(name(localVar, Int2String(I)),instValToKItem(In)), S)
@@ -951,7 +951,7 @@ module LLVM-NORMALIZING
          <functionName> FunName </functionName>
          <localFunVarCounter> I:Int => I +Int 1 </localFunVarCounter>
 
-    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, Var:LocalVar = In:InstVal
+    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, (Var:LocalVar) = In:InstVal
                Ins:InstructionList BB:BBTerminatorInstruction, K:K, S:Set)
          => typeCheckOp(name(localVar, substrString(#tokenToString(Var),1
                           ,lengthString(#tokenToString(Var)))), In)
@@ -961,7 +961,7 @@ module LLVM-NORMALIZING
          ...</k>
          when notBool (Var in S)
 
-    rule <k> checkSingleAssignmentInBlock(N:SymbolicValueRef, Var:LocalVar = In:InstVal
+    rule <k> checkSingleAssignmentInBlock(N:SymbolicValueRef, (Var:LocalVar) = In:InstVal
                Ins:InstructionList BB:BBTerminatorInstruction, K:K, S:Set) ~> K':K
          => .K </k>
          <output>... .List => ListItem(" multiple definition of local value named '"
@@ -969,7 +969,7 @@ module LLVM-NORMALIZING
                ,lengthString(#tokenToString(Var))) +String "'") </output>
          when (Var in S)
 
-    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, Var:LocalValID = In:InstVal
+    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, (Var:LocalValID) = In:InstVal
                Ins:InstructionList BB:BBTerminatorInstruction, K:K, S:Set)
          => typeCheckOp(name(localVar, substrString(#tokenToString(Var),1
                           ,lengthString(#tokenToString(Var)))), In)
@@ -985,7 +985,7 @@ module LLVM-NORMALIZING
          when notBool (Var in S) andBool String2Int(substrString(#tokenToString(Var),1
                ,lengthString(#tokenToString(Var)))) ==Int I
 
-    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, Var:LocalValID = In:InstVal
+    rule <k>checkSingleAssignmentInBlock(N:SymbolicValueRef, (Var:LocalValID) = In:InstVal
                Ins:InstructionList BB:BBTerminatorInstruction, K:K, S:Set) ~> K':K
          => .K </k>
          <currModule> ModName:SymbolicValueRef </currModule>
@@ -1046,17 +1046,17 @@ create an abstract for fence and do the same for fence operation.
     //define checkSingleAssignment
     rule checkSingleAssignment(.K, K:K, S:Set) => funBegin(K)
 //    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
-    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
+    rule checkSingleAssignment((L:LabelStringConstant) Ins:InstructionList
                                 BB:BBTerminatorInstruction BBL:BasicBlockList, K:K, S:Set)
          => checkSingleAssignmentInBlock(makeVarFromLabel(L),Ins BB, .K, S)
            ~> checkSingleAssignment(BBL, K, S:Set)
 //    rule checkSingleAssignment(L:LabelStringConstant : Ins:InstructionList
-    rule checkSingleAssignment(L:LabelStringConstant Ins:InstructionList
+    rule checkSingleAssignment((L:LabelStringConstant) Ins:InstructionList
                                 BB:BBTerminatorInstruction, K:K, S:Set)
          => checkSingleAssignmentInBlock(makeVarFromLabel(L),Ins BB, .K, S) ~>
             checkSingleAssignment(.K, K, S)
 
-    rule <k>checkSingleAssignment(Ins:InstructionList
+    rule <k>checkSingleAssignment((Ins:InstructionList)
                                 BB:BBTerminatorInstruction BBL:BasicBlockList, K:K, S:Set)
          => checkSingleAssignmentInBlock(name(localVar, Int2String(I)), Ins BB, .K, S)
            ~> checkSingleAssignment(BBL, K, S)
@@ -1067,7 +1067,7 @@ create an abstract for fence and do the same for fence operation.
         <functionName> FunName </functionName>
         <localFunVarCounter> I:Int => I +Int 1 </localFunVarCounter>
 
-    rule <k> checkSingleAssignment(Ins:InstructionList
+    rule <k> checkSingleAssignment((Ins:InstructionList)
                                 BB:BBTerminatorInstruction, K:K, S:Set)
          => checkSingleAssignmentInBlock(name(localVar, Int2String(I)), Ins BB, .K, S)
            ~> checkSingleAssignment(.K , K, S)

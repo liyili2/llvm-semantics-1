@@ -6,11 +6,11 @@ requires "llvm-helpers.k"
 requires "llvm-standard-library-syntax.k"
 requires "llvm-syscalls-syntax.k"
 requires "llvm-configuration.k"
-//requires "kast.k"
+requires "kast.k"
 requires "domains.k"
 
 module LLVM-CALL-RET
-    //imports KCELLS
+    imports KCELLS
     imports LLVM-SYNTAX
     imports LLVM-ABSTRACTSYNTAX
     imports LLVM-SETTINGS
@@ -51,7 +51,7 @@ module LLVM-CALL-RET
         <functionName> FunName </functionName>
         <formalParameters> arguments(Formals:ElemList) </formalParameters>
         <initialBasicBlock> IBBName:SymbolicValueRef </initialBasicBlock>
-        <basicBlocks>... IBBName |-> Body:K ...</basicBlocks>
+        <basicBlocks>... IBBName |-> Body ...</basicBlocks>
         [large]
 
     syntax KItem ::= contextSwitch(K, K)
@@ -71,7 +71,7 @@ module LLVM-CALL-RET
 
     // might need a way to convert nonmatching types here?  depends on semantics
     rule
-        <k> bind((valValue(Arg:K), Args:ElemList), (val(arg(_, _, Formal:K)), Formals:ElemList))
+        <k> bind(elemCons(valValue(Arg:K), Args:ElemList), elemCons(val(arg(_, _, Formal:K)), Formals:ElemList))
             => assign(Formal, Arg)
             ~> bind(Args, Formals)
         ...</k>
@@ -79,12 +79,12 @@ module LLVM-CALL-RET
         <k> bind(.ElemList, .ElemList) => .K ...</k>
 
     rule
-        <k> bind((valValue(Arg:K), L:ElemList
-                  => L), val(vararg)) ...</k>
+        <k> bind(elemCons(valValue(Arg:K), L:ElemList
+                  => L), elemCons(val(vararg), .ElemList)) ...</k>
         <valist>... .List => ListItem(Arg) </valist>
 
     rule
-        <k> bind(.ElemList, val(vararg)) => .K ...</k>
+        <k> bind(.ElemList, elemCons(val(vararg), .ElemList)) => .K ...</k>
 
     // TODO this isn't great.  would be better to check type when doing the call/returning and handle appropriately
     syntax KItem ::= "clearVoid"
