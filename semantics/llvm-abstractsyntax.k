@@ -281,20 +281,20 @@ module LLVM-ABSTRACTSYNTAX
 
     //@ Floating-point Binary Operations
     //strict on all the arguments for theFSub, theFMul, theFDiv, the FRem
-    syntax LocalName ::= theFAdd(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theFSub(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theFMul(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theFDiv(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theFRem(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theFAdd(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theFSub(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theFMul(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theFDiv(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theFRem(K, K, K) [strict] // Type, Left op, Right op
 
     //@ Bitwise Binary Operations
     // strict on all the arguments for theShl, theLShr,theAShr, theOr, theXor
-    syntax LocalName ::= theShl(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theLShr(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theAShr(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theOr(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theAnd(K, K, K) [strict] // Type, Left op, Right op
-    syntax LocalName ::= theXor(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theShl(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theLShr(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theAShr(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theOr(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theAnd(K, K, K) [strict] // Type, Left op, Right op
+    syntax KItem ::= theXor(K, K, K) [strict] // Type, Left op, Right op
 
 
 endmodule

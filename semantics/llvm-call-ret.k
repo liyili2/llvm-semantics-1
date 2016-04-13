@@ -20,6 +20,8 @@ module LLVM-CALL-RET
     imports LLVM-CONFIGURATION
 
     syntax KItem ::= frame(K, Bag)
+    // TODO [LP]: Bag probably shouldn't be used here
+
     syntax KItem ::= bind(ElemList, ElemList)
 
     rule <k> arguments(L:ElemList) => elemListToK(L) ...</k>
@@ -102,7 +104,7 @@ module LLVM-CALL-RET
 
     rule
         <k> clearLocalMemory((ListItem(Base:Int) => .List) _) ...</k>
-        (<object>... <basePtr> Base:Int </basePtr> ...</object> => .)
+        (<object>... <basePtr> Base:Int </basePtr> ...</object> => .Bag)
 
     rule clearLocalMemory(.List) => .K
 

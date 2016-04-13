@@ -61,7 +61,7 @@ endmodule
 
 module LLVM-SYNTAX
 
-    // import DOMAINS
+    imports FLOAT
 
     /*@
       Define syntactic constructors for non-keyword tokens. 
@@ -95,8 +95,6 @@ module LLVM-SYNTAX
     syntax Floating ::= r"NaN([fFdD]|[pP][0-9]+[xX][0-9]+)?" [token]
 
     syntax Floating ::= "NaN" | "Infinity"
-
-    // TODO: fix above
     
     syntax FpVal ::= HexConstant | Floating
 
@@ -170,7 +168,7 @@ module LLVM-SYNTAX
     //                       [onlyLabel]
     syntax ComdatVar ::= r"[$][a-zA-Z._\\-$\\\\][0-9a-zA-Z._\\-$\\\\]*" [token] //, klabel(labelComdatVar)]
 
-    // TODO: make sure all above regex are correct
+    // TODO [LP]: make sure all above regex are correct
 
     /*@
       There are the primary operators.
@@ -352,13 +350,7 @@ module LLVM-SYNTAX
          externally referenced and must refrain from deleting the symbol. 
     */
     syntax OptDllStorageClass ::= "dllimport" | "dllexport"
-    	   		      | "dllStorageEmpty" // TODO: don't forget this
-                           //     | "" [klabel(dllStorageEmpty),onlyLabel]
-
-
-    // TODO: other empty strings like this
-
-
+    	   		      | "dllStorageEmpty" 
 
     /*@
       LLVM functions, calls and invokes can all have an optional calling convention

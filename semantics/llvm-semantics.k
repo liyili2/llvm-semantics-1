@@ -18,6 +18,7 @@ requires "llvm-normalizing.k"
 requires "llvm-declarations.k"
 requires "llvm-call-ret.k"
 requires "llvm-variadics.k"
+requires "domains.k"
 
 module LLVM-ARITHMETIC
     imports LLVM-SYNTAX
@@ -121,6 +122,7 @@ module LLVM-FLOATING-POINT-ARITHMETIC
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
+    
 
     rule
         <k> theFAdd(Type:KResult, F1:Float, F2:Float)
@@ -138,7 +140,9 @@ module LLVM-FLOATING-POINT-ARITHMETIC
         ...</k>
 
     // TODO incorrect since NaN * 0 = NaN
-    rule theFMul(_, F:#Float, PositiveZero) => 0.0
+    //rule theFMul(_, F:Float, PositiveZero) => 0.0 :: Float
+
+    // TODO [LP]: correct this rule (why was #Float used?) and make it kompile
 
 endmodule
 
@@ -149,7 +153,7 @@ module LLVM-GEP
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     syntax KItem ::= "gep"
 
@@ -219,7 +223,7 @@ module LLVM-HELPERS-SPLIT-BYTES
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     syntax KItem ::= splitIntegerBytes(K, K, K) // value, numBytes, type
     syntax KItem ::= "splitIntegerBytes'" "(" K "," K "," List ")" // value, numbytes, accumulator
@@ -382,7 +386,7 @@ module LLVM-HELPERS-JOIN-BYTES
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     syntax KItem ::= joinIntBytes(K, K, K, K)
     syntax KItem ::= joinFloatBytes(K, K, K)
@@ -475,9 +479,11 @@ module LLVM-MEMORY
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     syntax Loc ::= "nextSym" Loc [function]
+
+    // TODO [LP]: Loc was KItem, should be allowed to be KItem but that causes error(s)   
 
     rule nextSym loc(N:Int, 0) => loc(N:Int +Int 1, 0)
 
@@ -575,7 +581,7 @@ module LLVM-COMPARISONS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     // all of these take place only at the top of K
     // TODO these break with ==Int or =/=Int
@@ -648,7 +654,7 @@ module LLVM-CONVERSIONS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     // TODO only handling scalars
     rule
@@ -730,7 +736,7 @@ module LLVM-LITERALS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     rule float(S) => String2Float(S)
     //when String2Float(S) >=Float String2Float(S)
@@ -776,7 +782,7 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     /////////////////////////////////////////////////////////
     // turning calls to intrinsics into semantic productions
@@ -865,7 +871,7 @@ module LLVM-STANDARD-LIBRARY
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     // memcpy
     rule
@@ -916,11 +922,11 @@ module LLVM-SYSCALLS-PREPROCESS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     rule
         <k> call(_, calleeValue(funptr(name(globalVar, "__syscall")),
-		    elemCons(valValue(4), L:ElemList)))
+		    elemCons(valValue(N:Int), L:ElemList)))
             => (syscallHandler(N,L))
         ...</k>
 endmodule
@@ -933,6 +939,7 @@ module LLVM-SYSCALLS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
+    
 
     rule <k> sys-ioctl(_) => 0 ...</k>
     rule <k> sys-rt-sigprocmask(_) => 0 ...</k>
@@ -999,6 +1006,7 @@ module LLVM-INTERNAL-TESTING-FUNCTIONS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
+    
 
     rule
         <k> call(_, calleeValue(funptr(name(globalVar, S:String)), (valValue(I:Int))))
@@ -1017,7 +1025,6 @@ module LLVM-EXCEPTIONS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
-
 
 /*
     rule
@@ -1070,4 +1077,5 @@ module LLVM-SEMANTICS
 
     imports LLVM-INTERNAL-TESTING-FUNCTIONS
     imports LLVM-EXCEPTIONS
+    
 endmodule

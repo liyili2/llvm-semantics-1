@@ -39,7 +39,8 @@ module LLVM-CONFIGURATION
             // auxiliary cells:
             <gepInfo multiplicity="?" color="red">
                 <gepType> .K </gepType>
-                <gepResult> 0 </gepResult>
+                <gepResult> .K </gepResult>
+		// TODO [LP]: change initial value of gepResult to whatever it should be
                 <gepIndices> .K </gepIndices>
             </gepInfo>
             <output stream="stdout" color="DodgerBlue"> .List </output>
@@ -48,7 +49,7 @@ module LLVM-CONFIGURATION
                     <moduleName color="orange"> name(labelVar, "") </moduleName>
                     <targetLayout> ""::StringName </targetLayout>
                     <targetTriple> ""::StringName </targetTriple>
-		    // TODO: make sure above is correct
+		    // TODO [LP]: make sure above is correct
                     <typedefs> .Map </typedefs>
                     <savedGlobals> .K </savedGlobals>
                     <globalFunVarCounter> 0 </globalFunVarCounter>

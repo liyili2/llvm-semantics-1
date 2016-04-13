@@ -24,6 +24,7 @@ module LLVM-DECLARATIONS
     rule
         <k> alias(Mod:Set, X:SymbolicValueRef, K:K) => . ...</k>
         <globalRegisters> Map:Map => Map[X <- K] </globalRegisters>
+    // TODO [LP]: changed Mod:K to Mod:Set, try to minimize error that was happening
 
     // TODO KListToK module sections
     // TODO: semantic design pattern: multi-arity (want multiple pieces of data at the same time like key/value pairs) vs. variadic (when you don't need to do things at the same time)

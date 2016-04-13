@@ -15,7 +15,6 @@ module LLVM-PREPROCESSING
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
     imports LLVM-CONFIGURATION
-    imports SET
 
     syntax KItem ::= preModule(Module, K, K, K, K, K, K, K, K)
     syntax KItem ::= stringConstruct(String)
