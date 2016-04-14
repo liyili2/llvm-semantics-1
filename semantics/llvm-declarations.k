@@ -60,7 +60,7 @@ module LLVM-DECLARATIONS
     // TODO: hack because hybrids don't seem to be working
     rule Fields(L:ElemList) => L
     rule Types(L:ElemList) => L
-
+/*
     rule
         <k> functionDef(Attributes:Set,RetType:KResult, Label:SymbolicValueRef, Arguments:K, F:K)
             => checkSingleAssignment(F, .K, .Set) ...</k>
@@ -91,7 +91,8 @@ module LLVM-DECLARATIONS
                 <functionName> Label </functionName>
             ...</function>
         )
-
+*/
+// TODO [LP]: Uncomment out these rules to make them work
     rule BB:BasicBlock BBL:BasicBlockList => BB ~> BBL
 /*
     rule <k> funBegin ~> Ins:InstructionList Tem:BBTerminatorInstruction
@@ -176,6 +177,7 @@ module LLVM-DECLARATIONS
              ~> instructionListToK(Ins) ~> Tem)] </basicBlocks>
 
 */
+/*
     rule
         <k> funBegin(basicBlock(Name:SymbolicValueRef, K:K) ~> K':K)
            => basicBlock(Name, K) ~> K' ...</k>
@@ -192,7 +194,8 @@ module LLVM-DECLARATIONS
         <currFunction> FunName:SymbolicValueRef </currFunction>
         <functionName> FunName:SymbolicValueRef </functionName>
         <basicBlocks>... .Map => Name:SymbolicValueRef |-> (setBlock(Name) ~> K:K) ...</basicBlocks>
-
+*/
+// TODO [LP]: Uncomment out these rules to make them work
     rule
         <k> setBlock(Label:SymbolicValueRef) => .K ...</k>
         <currBlock> Label':SymbolicValueRef => Label </currBlock>

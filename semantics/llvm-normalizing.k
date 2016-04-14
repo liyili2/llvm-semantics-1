@@ -112,11 +112,12 @@ module LLVM-NORMALIZING
              => .K </k>
          <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires N =/=Int 1 orBool N' =/=Int 1
-
+/*
     rule <k> typeCheckIntArg(T:K, I:Int, < .ReturnedVal >) ~> K => .K </k>
          <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires I >Int 0
-
+*/
+// TODO [LP]: uncomment out this rule and make it work
     rule <k> typeCheckIntArg(T:K, 0, < R:ReturnedVal >) ~> K => .K </k>
          <output>... .List => ListItem("error: constant expression type mismatch"::StringName) </output>
          requires R =/=K .ReturnedVal

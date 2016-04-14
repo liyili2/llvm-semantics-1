@@ -18,7 +18,6 @@ requires "llvm-normalizing.k"
 requires "llvm-declarations.k"
 requires "llvm-call-ret.k"
 requires "llvm-variadics.k"
-requires "domains.k"
 
 module LLVM-ARITHMETIC
     imports LLVM-SYNTAX
@@ -162,7 +161,7 @@ module LLVM-GEP
         <k> getElementPtr(Type:KResult, PtrVal:Loc, Indices:ElemList)
             => Type ~> gep
         ...</k>
-        (. =>
+        (.Bag =>
             <gepInfo>...
                 // <gepType> Type </gepType>
                 <gepResult> PtrVal </gepResult>
@@ -177,9 +176,9 @@ module LLVM-GEP
                 <gepIndices> .K </gepIndices>
                 <gepResult> Loc:Loc </gepResult>
             ...</gepInfo>
-            => .
+            => .Bag
         )
-
+	
     // rule <gepType> Type:KResult => Type </gepType>
 
     // TODO this is pretty ugly
