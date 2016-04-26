@@ -6,23 +6,25 @@ requires "llvm-helpers.k"
 requires "llvm-standard-library-syntax.k"
 requires "llvm-syscalls-syntax.k"
 requires "llvm-configuration.k"
+requires "llvm-clean-tree.k"
+requires "llvm-globals.k"
+requires "llvm-registers.k"
+requires "llvm-branching.k"
+requires "llvm-phi.k"
+requires "llvm-selection.k"
+requires "llvm-start-and-stop.k"
 requires "llvm-preprocessing.k"
 requires "llvm-normalizing.k"
 requires "llvm-declarations.k"
-requires "ctl-semantics.k"
+requires "llvm-call-ret.k"
+requires "llvm-variadics.k"
+requires "llvm-semantics.k"
+//requires "ctl-semantics.k"
 
-module LLVM-CTL
-    imports LLVM-SYNTAX
-    imports LLVM-ABSTRACTSYNTAX
-    imports LLVM-SETTINGS
-    imports LLVM-HELPERS
-    imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
-    imports LLVM-CONFIGURATION
-    imports LLVM-PREPROCESSING
-    imports LLVM-NORMALIZING
-    imports LLVM-DECLARATIONS
-    imports CTL-SEMANTICS
+module LLVM-CONNECTION
+    imports LLVM-SEMANTICS
+
+    //imports CTL-SEMANTICS
 
     /* CTL* models */
     /*-------------*/
@@ -33,74 +35,151 @@ module LLVM-CTL
      */
 
     /* a CTL* model defines the NodeLabels and succ/pred functions */
-
+/*
     syntax TypeName ::= "var" | "int"
     syntax Bool ::= hasType(K, TypeName)    [function]
     rule hasType(I:Int, int) => true
     rule hasType(V:SymbolicValueRef, var) => true
     rule hasType(A:K, B:TypeName) => false
+*/
 
-    syntax KResult ::= block(K, K, K)//current name, inst, next insts, remains
+    rule <k> gotoMain => .K </k>
+         <currFunction> _:K => name(globalVar, "main") </currFunction>
+
+    syntax KResult ::= block(K, K, K, K)//current name, inst, prev inst, next insts, remains
                    | "entryBlock"
-                   | "exitBlock"
+                   | exitBlock(K, K) //name, prev inst
     syntax ElemList ::= getNextBlock(KItem)
+                      | findNextBlock(K, K, K, K) //name, prev, cur, next
+                      | findNextBlockInBr(K, Set, ElemList)
+                      | getPrevBlock(KItem)
+                      | findPrevBlock(K, K, K, K)
+                      | findPrevBlockInBr(K, Set, ElemList)
+
+    syntax KItem ::= nextBlock(K, K)    [function]//name, insts.
+                   | prevBlock(K, K)
+    rule nextBlock(A:K, setBlock(B:K) ~> Init:KItem ~> K:K)
+               => block(A, .K, Init, K)
+    rule nextBlock(A:K, setBlock(B:K))
+               => block(A, .K, .K, .K)
+    rule nextBlock(A:K, .K)
+               => block(A, .K, .K, .K)
+    rule prevBlock(Name:K, .K) => block(Name, .K, .K, .K)
+    rule prevBlock(Name:K, A:K ~> B:KItem) => block(Name, A, B, .K)
 
     rule 
-        <k> getNextBlock(entryBlock) => valValue(block(Name, B, K)) ...</k>
+        <k> getNextBlock(entryBlock) => valValue(nextBlock(Name, K)) ...</k>
         <visitedBlocks> S:Set (.Set => SetItem(Name)) </visitedBlocks>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>
         <currFunction> FunName:SymbolicValueRef </currFunction>
         <functionName> FunName:SymbolicValueRef </functionName>
-        <basicBlocks>... Name:SymbolicValueRef |-> (setBlock(A:K) ~> B:KItem ~> K:K) ...</basicBlocks>
+        <basicBlocks>... Name:SymbolicValueRef |->
+                       blockContent(K:K, _:Set, _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
         <initialBasicBlock> Name </initialBasicBlock>
 
-    rule getNextBlock(block(_:K, ret(_:K, _:K), _:K)) => valValue(exitBlock)
+    rule getPrevBlock(exitBlock(Name:K, K:K)) => valValue(prevBlock(Name, K))
+    rule getPrevBlock(entryBlock) => .ElemList
+    rule getNextBlock(exitBlock(Name:K, K:K)) => .ElemList
 
-    rule getNextBlock(block(Name:K, _:K, A:KItem ~> K:K)) => valValue(block(Name, A, K))
+    rule getPrevBlock(block(A:K, Prev:K, Old:K, K:K))
+                  => findPrevBlock(A, Prev, Old, K)
+    rule getNextBlock(block(A:K, Prev:K, Old:K, K:K))
+                  => findNextBlock(A, Prev, Old, K) 
+
+    rule findPrevBlock(Name:K, Prev:K ~> Old:KItem, A:KItem, K:K)
+                     => valValue(block(Name, Prev, Old, A ~> K))
+
+    rule findNextBlock(Name:K, Prev:K, ret(A:K, B:K), .K)
+                                => valValue(exitBlock(Name, Prev ~> ret(A, B)))
+    rule findNextBlock(Name:K, Prev:K, unreachable, .K)
+                           => valValue(exitBlock(Name, Prev ~> unreachable))
+
+    rule findNextBlock(Name:K, Prev:K, A:KItem, K:K) => valValue(block(Name, Prev, A, K))
          requires K =/=K .K
 
+
     rule 
-        <k> getNextBlock(block(Name:K, conditional(Op:K,
-                  Br1:SymbolicValueRef, Br2:SymbolicValueRef), _:K))
-                           => valValue(block(Br1,.K,M[Br1])),valValue(block(Br2,.K,M[Br2])) ...</k>
-        <visitedBlocks> S:Set (.Set => SetItem(Br1) SetItem(Br2)) </visitedBlocks>
+        <k> findPrevBlock(Name:SymbolicValueRef, .K, A:K, Old:K)
+                           => findPrevBlockInBr(.K, In, .ElemList) ...</k>
+        <visitedBlocks> S:Set </visitedBlocks>
+        <currModule> ModName:SymbolicValueRef </currModule>
+        <funModuleName> ModName </funModuleName>
+        <currFunction> FunName:SymbolicValueRef </currFunction>
+        <functionName> FunName:SymbolicValueRef </functionName>
+        <basicBlocks>... Name |-> blockContent(_:K, _:Set, In:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+        requires A =/=K .K
+
+    rule 
+        <k> findNextBlock(Name:SymbolicValueRef, Prev:K, A:K, .K)
+                           => findNextBlockInBr(.K, Out, .ElemList) ...</k>
+        <visitedBlocks> S:Set </visitedBlocks>
+        <currModule> ModName:SymbolicValueRef </currModule>
+        <funModuleName> ModName </funModuleName>
+        <currFunction> FunName:SymbolicValueRef </currFunction>
+        <functionName> FunName:SymbolicValueRef </functionName>
+        <basicBlocks>... Name |-> blockContent(_:K, Out:Set, _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+        requires A =/=K .K andBool getKLabel(A) =/=KLabel 'ret
+                 andBool getKLabel(A) =/=KLabel 'unreachable
+
+    rule findNextBlockInBr(.K, .Set, E:ElemList) => E
+    rule findNextBlockInBr(.K, SetItem(A:K) S:Set, E:ElemList)
+                => findNextBlockInBr(A, S, E)
+
+    rule 
+        <k> findNextBlockInBr(Name:SymbolicValueRef, S:Set, E:ElemList)
+                     => findNextBlockInBr(.K, S, valValue(nextBlock(Name, K)), E) ...</k>
+        <visitedBlocks> S:Set (.Set => SetItem(Name)) </visitedBlocks>
+        <currModule> ModName:SymbolicValueRef </currModule>
+        <funModuleName> ModName </funModuleName>
+        <currFunction> FunName:SymbolicValueRef </currFunction>
+        <functionName> FunName:SymbolicValueRef </functionName>
+        <basicBlocks>... Name |->
+                    blockContent(K:K, _:Set, _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+        requires notBool (Name in S)
+
+    rule 
+        <k> findNextBlockInBr(Name:SymbolicValueRef, S:Set, E:ElemList)
+              => findNextBlockInBr(.K, S, E) ...</k>
+        <visitedBlocks> S:Set </visitedBlocks>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>
         <currFunction> FunName:SymbolicValueRef </currFunction>
         <functionName> FunName:SymbolicValueRef </functionName>
         <basicBlocks> M:Map </basicBlocks>
-        requires Br1 in keys(M) andBool Br2 in keys(M)
-                 andBool notBool (Br1 in S) andBool notBool (Br2 in S)
+        requires notBool (Name in keys(M)) orBool Name in S
+
+    rule findPrevBlockInBr(.K, .Set, E:ElemList) => E
+    rule findPrevBlockInBr(.K, SetItem(A:K) S:Set, E:ElemList)
+                => findPrevBlockInBr(A, S, E)
 
     rule 
-        <k> getNextBlock(block(Name:K, conditional(Op:K,
-                  Br1:SymbolicValueRef, Br2:SymbolicValueRef), _:K))
-                           => valValue(block(Br1,.K,M[Br1])) ...</k>
-        <visitedBlocks> S:Set (.Set => SetItem(Br1)) </visitedBlocks>
+        <k> findPrevBlockInBr(Name:SymbolicValueRef, S:Set, E:ElemList)
+                     => findPrevBlockInBr(.K, S, valValue(prevBlock(Name, K)), E) ...</k>
+        <visitedBlocks> S:Set (.Set => SetItem(Name)) </visitedBlocks>
+        <currModule> ModName:SymbolicValueRef </currModule>
+        <funModuleName> ModName </funModuleName>
+        <currFunction> FunName:SymbolicValueRef </currFunction>
+        <functionName> FunName:SymbolicValueRef </functionName>
+        <basicBlocks>... Name |->
+                    blockContent(K:K, _:Set, _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+        requires notBool (Name in S)
+
+    rule 
+        <k> findPrevBlockInBr(Name:SymbolicValueRef, S:Set, E:ElemList)
+              => findPrevBlockInBr(.K, S, E) ...</k>
+        <visitedBlocks> S:Set </visitedBlocks>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>
         <currFunction> FunName:SymbolicValueRef </currFunction>
         <functionName> FunName:SymbolicValueRef </functionName>
         <basicBlocks> M:Map </basicBlocks>
-        requires Br1 in keys(M)
-                 andBool notBool (Br1 in S) andBool (Br2 in S)
+        requires notBool (Name in keys(M)) orBool Name in S
 
-    rule 
-        <k> getNextBlock(block(Name:K, conditional(Op:K,
-                  Br1:SymbolicValueRef, Br2:SymbolicValueRef), _:K))
-                           => valValue(block(Br2,.K,M[Br2])) ...</k>
-        <visitedBlocks> S:Set (.Set => SetItem(Br2)) </visitedBlocks>
-        <currModule> ModName:SymbolicValueRef </currModule>
-        <funModuleName> ModName </funModuleName>
-        <currFunction> FunName:SymbolicValueRef </currFunction>
-        <functionName> FunName:SymbolicValueRef </functionName>
-        <basicBlocks> M:Map </basicBlocks>
-        requires  Br2 in keys(M)
-                 andBool (Br1 in S) andBool notBool (Br2 in S)
+endmodule
 
-
-    rule block(A:K, .K, setBlock(A:K) ~> C:KItem ~> K:K) => block(A, C, K) [anywhere]
+module LLVM-CTL-SYNTAX
+    imports LLVM-SEMANTICS
 
     syntax EquationLabel ::= "normal" | "otherwise"
     syntax Equation ::= theEq(K, ElemList, EquationLabel)
@@ -108,93 +187,50 @@ module LLVM-CTL
 
     syntax InstLevel ::= Id "(" Id ")" "<=>" EquationList   [onlyLabel, klabel('theEquation)]
 
-    syntax TheAtomic ::= theAtomic(Id, EquationList)
-                   | Id "(" Id ")"    [onlyLabel, klabel('ruleName)]
-
-    syntax KItem ::= interpretAtomic(K, K) [strict(2)]// theAtomic, block
-    syntax KItem ::= getOtherwise(EquationList)  [function]
-                   | searchList(EquationList, K)
-    rule getOtherwise(.EquationList) => false
-    rule getOtherwise(theEq(A:K, B:K, otherwise) Es:EquationList)
-                     => theEq(A, B, otherwise)
-    rule getOtherwise(theEq(A:K, B:K, normal) Es:EquationList)
-                     => getOtherwise(Es)
-    
-    syntax Map ::= match(K, K) [function]
-                 | match(KList, KList) [function]
-    syntax ElemList ::= subst(Map, ElemList)
-    syntax KItem ::= searchList(EquationList, K, Equation)
-
-    rule match(L:KLabel(KL:KList), L':KLabel(KL':KList)) => match(KL, KL')
-    rule match(.KList, .KList) => .Map
-    rule match(A:K,, KL:KList, B:K ,,KL':KList) => (A |-> B) match(KL, KL')
-
-    rule subst(M:Map, val(K:K) Es:ElemList) => .ElemList
-    rule subst(M:Map, val(K:K) Es:ElemList) => val(M[K]) subst(Map, Es)
-         requires K in keys(M)
-    rule subst(M:Map, val(K:K) Es:ElemList) => false
-         requires notBool (K in keys(M))
-    
-    rule <base> interpretAtomic('ruleName(A:Id,, B:Id), block(Name:K, K:K, KL:K))
-                                => searchList(Es, K:K, getOtherwise(Es))
-             ~> interpretAtomic('ruleName(A:Id,, B:Id), getNextBlock(block(Name:K, K:K, KL:K))) ...</base>
-        <equations>... A |-> theAtomic(S:Id, Es:EquationList) ...</equations>
-
-    rule <base> interpretAtomic('ruleName(A:Id,, B:Id), exitBlock) ~> K:K
-                                => false </base>
-
-    rule <until> interpretAtomic('ruleName(A:Id,, B:Id), block(Name:K, K:K, KL:K))
-                                => searchList(Es, K:K, getOtherwise(Es))
-             ~> interpretAtomic('ruleName(A:Id,, B:Id), getNextBlock(block(Name:K, K:K, KL:K))) ...</until>
-        <equations>... A |-> theAtomic(S:Id, Es:EquationList) ...</equations>
-
-    rule <until> interpretAtomic('ruleName(A:Id,, B:Id), exitBlock) ~> K:K
-                                => false </until>
-
-    rule <base> E:ElemList => .K ...</base><until> false => .K ...</until>
-    rule <until> E:ElemList => .K ...</until>
-         <boolResult> _:K => E <boolResult>
-
-    rule searchList(.EquationList, K:K, F:K) => subst(match(F, K), R)
-    rule searchList(theEq(K':K, R:K, normal) Es:EquationList, K:K, F:K)
-               => subst(match(K', K), R)
-         requires getKLabel(K') ==K getKLabel(K)
-    rule searchList(theEq(K':K, R:K, normal) Es:EquationList, K:K, F:K)
-           => searchList(Es:EquationList, K:K, F:K)
-         requires getKLabel(K') =/=K getKLabel(K)
-
-    syntax PathQuant    ::= "A" | "E"
-    syntax PathPred     ::= "(" PathPred ")"    [bracket]
+    syntax TheAtomic ::= Id "(" Id ")"                      [onlyLabel, klabel('ruleName)]
+/*
+    syntax PathQuant    ::= "A" [onlyLabel, klabel('allPath)]
+                          | "E" [onlyLabel, klabel('existPath)]
+*/
+    syntax PathPred     ::=  "(" PathPred ")"    [bracket]
                           | TheAtomic
-                          | "not" PathPred
-                          > PathPred "or" PathPred
-                          > PathPred "and" PathPred
-                          | PathQuant "->" PathPred                                   /* `next` */
-                          | PathQuant "--" PathPred "->" PathPred                     /* `until` */
-                          | PathPred "<-" PathQuant                                   /* `pred` */
-                          | PathPred "<-" PathPred "--" PathQuant                  /* `since` */
+                          | "not" PathPred                 [onlyLabel, klabel('notPath)]
+                          > PathPred "or" PathPred         [onlyLabel, klabel('orPath)]
+                          > PathPred "and" PathPred        [onlyLabel, klabel('andPath)]
+                          | "E->" PathPred                 [onlyLabel, klabel('existNext)]                        /* `next` */
+                          | "--E" PathPred "->" PathPred   [onlyLabel, klabel('existuntil)]              /* `until` */
+                          | PathPred "<-E"                 [onlyLabel, klabel('existPred)]                        /* `pred` */
+                          | PathPred "<-" PathPred "E--"   [onlyLabel, klabel('existSince)]              /* `since` */
+                          | "A->" PathPred                 [onlyLabel, klabel('allNext)]                        /* `next` */
+                          | "--A" PathPred "->" PathPred   [onlyLabel, klabel('allUntil)]              /* `until` */
+                          | PathPred "<-A"                 [onlyLabel, klabel('allPred)]                        /* `pred` */
+                          | PathPred "<-" PathPred "A--"   [onlyLabel, klabel('allSince)]              /* `since` */
 
-    rule <k> A -- 'ruleName(A:Id,, B:Id) -> 'ruleName(C:Id,, D:Id) ...</k>
-         ( .Bag => <base> interpretAtomic('ruleName(A:Id,, B:Id), getNextBlock(entryBlock))  </base>
-                   <until> interpretAtomic('ruleName(C:Id,, D:Id), getNextBlock(entryBlock))  </until>
-                   <visitedBlocks> .Set </visitedBlocks>)
-
-    syntax Ids ::= List{Id, ","}
-
-    syntax PatternLevel ::= Id "(" Ids ")" "<=>" PathPred   [onlyLabel, klabel('thePattern)]
-
-    syntax KItem ::= substInBlock(K, K)
+    syntax KItem ::= KItem ";" KItem               [left, klabel('addNode)]
+                   | KItem "[" KItem "/" KItem "]" [klabel('replaceNode)]
+                   | ".Node"                       [klabel('deleteNode)]
 
     syntax TheRewrite ::= theRewrite(K, K, PathPred)   [strict(3)]
-                        | TheRewrite ";" TheRewrite
+                        | TheRewrite ";" TheRewrite    [left, klabel('compose)]
                         | TheRewrite "*"
 
-    rule theRewrite(LK, RK, .ElemList) => .K
-    rule theRewrite(LK, RK, valValue(K:K), Es:ElemList)
-              => substInBlock(K, subst(match(LK, K), RK)) ~> theRewrite(LK, RK, Es)
 
-    rule A:TheRewrite ; B:TheRewrite => A ~> Ba
+endmodule
 
+module LLVM-CTL
+    imports LLVM-CTL-SYNTAX
+    imports LLVM-SEMANTICS
+    imports LLVM-CONNECTION
+/*
+    rule uses(a) <=> theEq(theAdd(T, hasType(a, var), hasType(b, var))
+                                    ,valValue(a),valValue(b),normal)
+            theEq(theSub(T, hasType(a, var), hasType(b, var)),valValue(a),valValue(b),normal)
+            theEq(A,false,otherwise)
+
+    rule usesTerm(c, t) <=> c = t <-A not c = t'-- uses c
+
+    rule theRewrite(I, I[t/c], usesTerm c (hasType(t, int)))
+*/
 
 
 endmodule
