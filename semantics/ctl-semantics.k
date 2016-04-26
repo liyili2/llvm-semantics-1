@@ -148,13 +148,10 @@ module CTL-SEMANTICS
     imports CTL-SYNTAX
 
     /* satisfaction syntax (only CTL, not CTL*) */
-    syntax SatisQuery   ::= State           "|=" StatePred
+    syntax SatisQuery   ::= State           "|=" StatePred                      [strict(2)]
                           | States          "|=" StatePred                      [strict(1)]
                           | Quant States    "|=" StatePred                      [strict(2)]
     syntax Satis        ::= SatisQuery
-
-    /* canonicalize the predicate to check */
-    rule S:State |= P                   => P ~> S |= HOLE
 
     /* extension of satisfaction to sets of states/paths */
     rule S:States |= P                  => A S |= P                             [structural]
@@ -176,6 +173,17 @@ module CTL-SEMANTICS
     rule S:State |= Q:Quant (prev P)        => Q pred(S) |= P                       [structural]
     rule S:State |= Q:Quant (P1 until P2)   => (S |= P2) or (S |= Q (next Q (P1 until P2)))   [structural]
     rule S:State |= Q:Quant (P1 since P2)   => (S |= P2) or (S |= Q (prev Q (P1 since P2)))   [structural]
+
+    /* satisfaction of atomic predicates */
+    syntax SatisQuery   ::= inAP(State, StatePred)
+                          | inAP(StatePred, StatePred)
+
+    rule S:State |= AP:AtomicPredicate => inAP(S,AP)
+    rule inAP(AP':AtomicPred, AP:AtomicPred) => satis   when AP' ==K AP
+    rule inAP(AP':AtomicPred, AP:AtomicPred) => unsatis when AP' =/=K AP
+    rule inAP(AP':AtomicPred, AP and APS)    => inAP(AP', AP) or inAP(AP', APS)
+    rule <k> inAP(S:State,AP) => inAP(SP,AP) ... </k>
+         <atomic> ... S |-> SP ... </k>
 
     /* calculating successors/predecessors */
     rule <k> succ(S:State) => SS ... </k>
