@@ -5,7 +5,8 @@ module CTL-SYNTAX
     syntax State        ::= Id
     syntax StateQuery   ::= succ(State)
                           | pred(State)
-    syntax SetState     ::= ".States"
+    syntax SetState     ::= "(" SetState ")"    [bracket]
+                          | ".States"
                           | State SetState
     syntax States       ::= "(" States ")"      [bracket]
                           | SetState
@@ -23,14 +24,14 @@ module CTL-SYNTAX
     syntax StatePredFin ::= AtomicPred
                           | "ctl-true"
                           | "ctl-false"
-                          > StatePredFin "and" StatePredFin     [seqstrict]
-                          > StatePredFin "xor" StatePredFin     [seqstrict]
+                          > StatePredFin "and" StatePredFin     [right, seqstrict]
+                          > StatePredFin "xor" StatePredFin     [right, seqstrict]
                           | Quant PathPredFin                   [seqstrict]
 
     syntax PathPredFin  ::= "next" StatePredFin                 [seqstrict]
                           | "prev" StatePredFin                 [seqstrict]
-                          | StatePredFin "until" StatePredFin   [seqstrict]
-                          | StatePredFin "since" StatePredFin   [seqstrict]
+                          | StatePredFin "until" StatePredFin   [right, seqstrict]
+                          | StatePredFin "since" StatePredFin   [right, seqstrict]
 
     syntax KResult      ::= StatePredFin
     syntax KResult      ::= PathPredFin
@@ -174,51 +175,41 @@ module CTL-SEMANTICS
     rule S:State |= Q:Quant (P1 until P2)   => (S |= P2) or (S |= Q (next Q (P1 until P2)))   [structural]
     rule S:State |= Q:Quant (P1 since P2)   => (S |= P2) or (S |= Q (prev Q (P1 since P2)))   [structural]
 
-    /* satisfaction of atomic predicates */
-    syntax SatisQuery   ::= inAP(State, StatePred)
-                          | inAP(StatePred, StatePred)
-
-    rule S:State |= AP:AtomicPredicate => inAP(S,AP)
-    rule inAP(AP':AtomicPred, AP:AtomicPred) => satis   when AP' ==K AP
-    rule inAP(AP':AtomicPred, AP:AtomicPred) => unsatis when AP' =/=K AP
-    rule inAP(AP':AtomicPred, AP and APS)    => inAP(AP', AP) or inAP(AP', APS)
-    rule <k> inAP(S:State,AP) => inAP(SP,AP) ... </k>
-         <atomic> ... S |-> SP ... </k>
-
     /* calculating successors/predecessors */
-    rule <k> succ(S:State) => SS ... </k>
+/*    rule <k> succ(S:State) => SS ... </k>
          <succs> ... S |-> SS ... </succs>
     rule <k> pred(S:State) => SS ... </k>
          <preds> ... S |-> SS ... </preds>
-
+*/
     /* testing */
 
     /* input syntax */
-    syntax StateSuccs   ::= State
-                          | State StateSuccs
-    syntax StateDesc    ::= State "->" StateSuccs "::" StatePred
-    syntax ModelDesc    ::= StateDesc
+    syntax StateDesc    ::= State "->" States "::" StatePred
+    syntax ModelDesc    ::= ".Model"
                           | StateDesc ";;" ModelDesc
     syntax ModelQuery   ::= ModelDesc "--satis--" SatisQuery
 
     syntax KItem        ::= ModelQuery
                           | SatisQuery
                           | buildModel(ModelDesc)
-                          | addEdges(State,StateSuccs)
-                          | addEdge(State,State)
-                          | addBackEdge(State,State)
+                          | nuEdges(State,States)
 
     rule MD:ModelDesc --satis-- S:SatisQuery => buildModel(MD) ~> S
 
     /* building problem statement */
-    rule buildModel(SD:StateDesc ;; MD:ModelDesc) => buildModel(SD) ~> buildModel(MD)
-    rule <k> buildModel(S:State -> SS:StateSuccs :: SP:StatePred)
-                => addEdges(S,SS) ... </k>
-         <atomic> (.Map => S|->SP) SPS:Map </atomic>
-         when notBool (S in keys(SPS))
+    rule <k> buildModel(SD:StateDesc ;; MD:ModelDesc) => buildModel(MD) ... </k>
+         (. => <instruction> ... <id> buildState(SD) </id> ... </instruction>)
 
-    rule addEdges(S:State, S':State) => addEdge(S,S') ~> addBackEdge(S',S)
+    rule <k> buildModel(.Model) => . ... </k>
+
+    rule <k> (. => nuEdges(S,SS)) ... </k>
+         <id> buildState(S:State -> SS:States :: SP:StatePred) => . ... </id>
+         <atomic> . => SP </atomic>
+
+/*
     rule addEdges(S:State, S1:State SS:StateSuccs) => addEdges(S,S1) ~> addEdges(S,SS)
+
+    rule <instruction> 
 
     rule <k> (addEdge(S:State, S':State) => .) ... </k>
          <succs> ... S |-> (SS:SetState => S' SS) ... </succs>
@@ -231,15 +222,19 @@ module CTL-SEMANTICS
     rule <k> addBackEdge(S:State, S':State) => . ... </k>
          <preds> (.Map => S |-> S' .States) Preds:Map </preds>
          when notBool (S in keys(Preds))
+*/
 
     configuration
-        <ctl>
+        <basicBlocks>
             <k> $PGM:ModelQuery </k>
-            <succs> .Map </succs>
-            <preds> .Map </preds>
-            <atomic> .Map </atomic>
-        </ctl>
-
+            <instruction multiplicity="*">
+                <id> .K </id>
+                <succs> .States </succs>
+                <preds> .States </preds>
+                <atomic> ctl-true </atomic>
+                <checking> .K </checking>
+            </instruction>
+        </basicBlocks>
     /*
      * syntax Rule         ::= Name
      * syntax Rewrite      ::= Rule
