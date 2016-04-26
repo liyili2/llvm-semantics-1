@@ -23,14 +23,14 @@ module CTL-SYNTAX
     syntax StatePredFin ::= AtomicPred
                           | "ctl-true"
                           | "ctl-false"
-                          > StatePredFin "and" StatePredFin
-                          > StatePredFin "xor" StatePredFin
-                          | Quant PathPredFin
+                          > StatePredFin "and" StatePredFin     [seqstrict]
+                          > StatePredFin "xor" StatePredFin     [seqstrict]
+                          | Quant PathPredFin                   [seqstrict]
 
-    syntax PathPredFin  ::= "next" StatePredFin
-                          | "prev" StatePredFin
-                          | StatePredFin "until" StatePredFin
-                          | StatePredFin "since" StatePredFin
+    syntax PathPredFin  ::= "next" StatePredFin                 [seqstrict]
+                          | "prev" StatePredFin                 [seqstrict]
+                          | StatePredFin "until" StatePredFin   [seqstrict]
+                          | StatePredFin "since" StatePredFin   [seqstrict]
 
     syntax KResult      ::= StatePredFin
     syntax KResult      ::= PathPredFin
@@ -148,7 +148,7 @@ module CTL-SEMANTICS
     imports CTL-SYNTAX
 
     /* satisfaction syntax (only CTL, not CTL*) */
-    syntax SatisQuery   ::= State           "|=" StatePred                      [strict(2)]
+    syntax SatisQuery   ::= State           "|=" StatePred
                           | States          "|=" StatePred                      [strict(1)]
                           | Quant States    "|=" StatePred                      [strict(2)]
     syntax Satis        ::= SatisQuery
