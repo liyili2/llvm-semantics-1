@@ -1,6 +1,6 @@
 module CTL-SYNTAX
 
-    /* States */
+    /* states */
     /*--------*/
     syntax State        ::= Id
     syntax StateQuery   ::= succ(State)
@@ -12,54 +12,35 @@ module CTL-SYNTAX
                           | SetState
                           | StateQuery
 
-    syntax KResult      ::= State
-    syntax KResult      ::= SetState
-
-    /* formula constructor terms */
-    /*---------------------------*/
-
+    /* formula terms */
+    /*---------------*/
     syntax Quant        ::= "A" | "E"
     syntax AtomicPred   ::= State
-
-    syntax StatePredFin ::= AtomicPred
+    syntax StatePred    ::= AtomicPred
                           | "ctl-true"
                           | "ctl-false"
-                          > StatePredFin "and" StatePredFin     [right, seqstrict]
-                          > StatePredFin "xor" StatePredFin     [right, seqstrict]
-                          | Quant PathPredFin                   [seqstrict]
-
-    syntax PathPredFin  ::= "next" StatePredFin                 [seqstrict]
-                          | "prev" StatePredFin                 [seqstrict]
-                          | StatePredFin "until" StatePredFin   [right, seqstrict]
-                          | StatePredFin "since" StatePredFin   [right, seqstrict]
-
-    syntax KResult      ::= StatePredFin
-    syntax KResult      ::= PathPredFin
-
-    /* formula sugared terms */
-    /*-----------------------*/
-
-    syntax StatePred    ::= StatePredFin
-                          | "(" StatePred ")"               [bracket]
-                          |           "not"     StatePred   [seqstrict]
-                          > StatePred "and"     StatePred   [left, seqstrict]
-                          | StatePred           StatePred   [left, seqstrict]          /* implicit `and` */
-                          > StatePred "xor"     StatePred   [left, seqstrict]
-                          > StatePred "or"      StatePred   [left, seqstrict]
-                          > StatePred "implies" StatePred   [seqstrict]
-                          > StatePred "iff"     StatePred   [seqstrict]
-                          | Quant PathPred                  [strict(2)]
-
-    syntax PathPred     ::= PathPredFin
-                          | "(" PathPred ")"                [bracket]
-                          | "->" StatePred                  [seqstrict]
-                          | "--" StatePred "->" StatePred   [seqstrict]
-                          | StatePred "<-"                  [seqstrict]
-                          | StatePred "<-" StatePred "--"   [seqstrict]
-                          | "-->" StatePred                 [seqstrict]
-                          | "eventually" StatePred          [seqstrict]
-                          | StatePred "<--"                 [seqstrict]
-                          | "was" StatePred                 [seqstrict]
+                          | "(" StatePred ")"                   [bracket]
+                          |           "not"     StatePred       [seqstrict]
+                          > StatePred "and"     StatePred       [right, seqstrict]
+                          | StatePred           StatePred       [right, seqstrict]
+                          > StatePred "or"      StatePred       [right, seqstrict]
+                          > StatePred "xor"     StatePred       [right, seqstrict]
+                          > StatePred "implies" StatePred       [seqstrict]
+                          > StatePred "iff"     StatePred       [seqstrict]
+                          | Quant PathPred                      [strict(2)]
+    syntax PathPred     ::= "(" PathPred ")"                    [bracket]
+                          | "next" StatePred                    [seqstrict]
+                          | "->" StatePred                      [seqstrict]
+                          | "prev" StatePred                    [seqstrict]
+                          | StatePred "<-"                      [seqstrict]
+                          | StatePred "until" StatePred         [seqstrict]
+                          | "--" StatePred "->" StatePred       [seqstrict]
+                          | StatePred "since" StatePred         [seqstrict]
+                          | StatePred "<-" StatePred "--"       [seqstrict]
+                          | "-->" StatePred                     [seqstrict]
+                          | "eventually" StatePred              [seqstrict]
+                          | StatePred "<--"                     [seqstrict]
+                          | "was" StatePred                     [seqstrict]
 
     /* desugaring rules */
     /*------------------*/
@@ -107,17 +88,14 @@ endmodule
 module SATISFACTION
 
     /* satsifaction */
-    syntax SatisFin     ::= "satis"
+    syntax Satis        ::= "satis"
                           | "unsatis"
-    syntax Satis        ::= SatisFin
                           | "(" Satis ")"                   [bracket]
                           > "not" Satis                     [seqstrict]
                           > Satis "xor" Satis               [right, seqstrict]
                           > Satis "and" Satis               [right, seqstrict]
                           | Satis       Satis               [right, seqstrict] /* implicit `and` */
                           > Satis "or"  Satis               [right, seqstrict]
-
-    syntax KResult      ::= SatisFin
 
     /* desugar implicit `and` */
     rule S:Satis S':Satis       => S and S'                         [structural]
@@ -183,47 +161,6 @@ module CTL-SEMANTICS
 */
     /* testing */
 
-    /* input syntax */
-    syntax StateDesc    ::= State "->" States "::" StatePred
-    syntax ModelDesc    ::= ".Model"
-                          | StateDesc ";;" ModelDesc
-    syntax ModelQuery   ::= ModelDesc "--satis--" SatisQuery
-
-    syntax KItem        ::= ModelQuery
-                          | SatisQuery
-                          | buildModel(ModelDesc)
-                          | nuEdges(State,States)
-
-    rule MD:ModelDesc --satis-- S:SatisQuery => buildModel(MD) ~> S
-
-    /* building problem statement */
-    rule <k> buildModel(SD:StateDesc ;; MD:ModelDesc) => buildModel(MD) ... </k>
-         (. => <instruction> ... <id> buildState(SD) </id> ... </instruction>)
-
-    rule <k> buildModel(.Model) => . ... </k>
-
-    rule <k> (. => nuEdges(S,SS)) ... </k>
-         <id> buildState(S:State -> SS:States :: SP:StatePred) => . ... </id>
-         <atomic> . => SP </atomic>
-
-/*
-    rule addEdges(S:State, S1:State SS:StateSuccs) => addEdges(S,S1) ~> addEdges(S,SS)
-
-    rule <instruction> 
-
-    rule <k> (addEdge(S:State, S':State) => .) ... </k>
-         <succs> ... S |-> (SS:SetState => S' SS) ... </succs>
-    rule <k> addEdge(S:State, S':State) => . ... </k>
-         <succs> (.Map => S |-> S' .States) Succs:Map </succs>
-         when notBool (S in keys(Succs))
-
-    rule <k> (addBackEdge(S:State, S':State) => .) ... </k>
-         <preds> ... S |-> (SS:SetState => S' SS) ... </preds>
-    rule <k> addBackEdge(S:State, S':State) => . ... </k>
-         <preds> (.Map => S |-> S' .States) Preds:Map </preds>
-         when notBool (S in keys(Preds))
-*/
-
     configuration
         <basicBlocks>
             <k> $PGM:ModelQuery </k>
@@ -231,19 +168,60 @@ module CTL-SEMANTICS
                 <id> .K </id>
                 <succs> .States </succs>
                 <preds> .States </preds>
-                <atomic> ctl-true </atomic>
-                <checking> .K </checking>
+                <proven> ctl-true </proven>
+                <query> .K </query>
             </instruction>
         </basicBlocks>
-    /*
-     * syntax Rule         ::= Name
-     * syntax Rewrite      ::= Rule
-     *                       | Rule "*"
-     *                       | Rule ";;" Rule      [right]
-     * syntax Optimization ::= Model
-     *                         ";; begin optimization"
-     *                         ";;" Rewrite
-     *                         ";; end optimization"
-     */
+
+    /* input syntax */
+    syntax StateDesc    ::= State "->" States "::" StatePred
+    syntax ModelDesc    ::= StateDesc "." ModelDesc
+                          | "; end model"
+    syntax SatisDesc    ::= SatisQuery ";" SatisDesc
+                          | "; end satis"
+    syntax ModelQuery   ::= "; model" ModelDesc "; satis" SatisDesc "; stop"
+
+    /* "constructors" (in the OOP sense) */
+    syntax KItem        ::= State(StateDesc)
+                          | Satis(SatisDesc)
+                          | Satis(SatisQuery)
+                          | Model(ModelDesc)
+                          | nuEdges(State,States)
+                          | nuSucc(State,State)
+                          | nuPred(State,State)
+
+    rule ; model
+            MD:ModelDesc
+         ; satis
+            SD:SatisDesc
+         ; stop => Model(MD) ~> Satis(SD)
+
+    /* building problem statement */
+    rule <k> Model(S -> SS :: SP . MD) => Model(MD) ~> nuEdges(S,SS) ... </k>
+         (. => <instruction> ... <id> S </id> <atomic> SP </atomic> ... </instruction>)
+    rule Model(; end model) => .
+
+/*
+    rule <k> Satis(SQ:SatisQuery ; SD:SatisDesc) => Satis(SD) ... </k>
+    rule Satis(; end satis) => .
+*/
+    rule nuEdges(S, .States) => .
+    rule nuEdges(S, S1:State SS) => nuSucc(S, S1) ~> nuPred(S1, S) ~> nuEdges(S, SS)
+
+    rule <k> nuSucc(S, S') => . ... </k>
+            <instruction>
+                ...
+                <id> S </id>
+                (<succs> SS </succs> => <succs> S' SS </succs>)
+                ...
+            </instruction>
+
+    rule <k> nuPred(S, S') => . ... </k>
+            <instruction>
+                ...
+                <id> S </id>
+                (<preds> PS </preds> => <preds> S' PS </preds>)
+                ...
+            </instruction>
 
 endmodule
