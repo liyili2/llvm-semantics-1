@@ -8,10 +8,13 @@ a.out
 *.aux
 *.mrk
 *.tmp
+*.pdf
+*.tex
+.*
 .k
+*kompiled
 dist
 tools/llvm-dis-xml/build
-
 semantics/*.ll
 semantics/*.s
 semantics/*.c
