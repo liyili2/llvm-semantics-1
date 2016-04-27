@@ -67,14 +67,14 @@ module CTL-SYNTAX
     rule (S xor ctl-false):StatePred    => S
 
     /* desugar path predicates */
-    rule (-> P):PathPred                => next P
-    rule (-- P1 -> P2):PathPred         => P1 until P2
-    rule (P <-):PathPred                => prev P
-    rule (P2 <- P1 --):PathPred         => P1 since P2
-    rule (--> P):PathPred               => eventually P
-    rule (P <--):PathPred               => was P
-    rule (eventually P):PathPred        => ctl-true until P
-    rule (was P):PathPred               => ctl-true since P
+    rule -> P            => next P
+    rule -- P1 -> P2     => P1 until P2
+    rule P <-            => prev P
+    rule P2 <- P1 --     => P1 since P2
+    rule --> P           => eventually P
+    rule P <--           => was P
+    rule eventually P    => ctl-true until P
+    rule was P           => ctl-true since P
 
     /* satsifaction */
     /*--------------*/
@@ -91,7 +91,7 @@ module CTL-SYNTAX
     /* desugar implicit `and` */
     rule (S S'):Satis       => S and S'                     [structural]
 
-    /* remove `not` and `or` */
+    /* remove `or` */
     rule (S1 or S2):Satis   => (S1 xor S2) xor (S1 and S2)  [structural]
 
 endmodule
