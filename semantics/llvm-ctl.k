@@ -43,12 +43,24 @@ module LLVM-CONNECTION
     rule hasType(A:K, B:TypeName) => false
 */
 
-    syntax KResult ::= block(K, K, K, K, K)//current name, num, inst content, prev inst, next insts, 
+    syntax KResult ::= block(K, K, K, Set, Set)//current name, num, inst content, prev inst, next insts, 
     syntax KItem ::= labelInst(K, K)
-                   | labelInst(K, K, K, K)//name, insts, first, last
+                   | labelAllBlocks(Map)
+                   | labelInst(K, K, K)//name, insts, first
                    | labelInstNextBlock(K, Set)
+                   | firstLast(K, K)//first inst num, last inst num
+                   | labelInsts(K, Map)
+                   | getContent(K) [function]
+                   | "fillFirstLasts"
+                   | fillFirstLasts(Map)
+                   | fillFirstLast(K, K)
+                   | fillFirst(K, Set, K)
+                   | fillLast(K, Set, K)
 
-    rule <k> gotoMain => labelInst(B, C) ...</k>
+    rule getContent(blockContent(C:K, _:Set, _:Set, _:Set, _:Set, _:Set)) => C
+    rule getContent(K:K) => K [owise]
+
+    rule <k> gotoMain => labelInst(B, C) ~> labelAllBlocks(M') ~> fillFirstLasts ...</k>
          <currFunction> _:K => name(globalVar, "main") </currFunction>
          <visitedBlocks> S:Set => SetItem(B) </visitedBlocks>
          <labelInsts> M:Map => .Map </labelInsts>
@@ -56,44 +68,77 @@ module LLVM-CONNECTION
          <funModuleName> ModName:SymbolicValueRef </funModuleName>
          <functionName> name(globalVar, "main") </functionName>
          <initialBasicBlock> B:SymbolicValueRef </initialBasicBlock>
-         <basicBlocks>... B |-> blockContent(C:K, _:Set, _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+         <basicBlocks> M':Map (B |-> blockContent(C:K, _:Set, _:Set, _:Set, _:Set, _:Set)) </basicBlocks>
+
+    rule labelAllBlocks((Name:K |-> B:K) M:Map)
+          => labelInst(Name, getContent(B)) ~> labelAllBlocks(M)
+    rule labelAllBlocks(.Map) => .K
+
+    rule <k> labelInst(Name:K,  setBlock(K:K) ~> A:KItem ~> .K)
+            => .K ...</k>
+         <firstLastInst> M':Map => M'[Name <- firstLast(I, I)] </firstLastInst>
+         <labelInsts> M:Map => M[I <- block(Name, I, A, .Set, .Set)] </labelInsts>
+         <instNum> I => I +Int 1 </instNum>
 
     rule <k> labelInst(Name:K,  setBlock(K:K) ~> A:KItem ~> K:K)
-            => labelInst(Name, K, I, .K) ...</k>
-         <labelInsts> M:Map => M[I <- A] </labelInsts>
+            => labelInst(Name, K, I) ...</k>
+         <labelInsts> M:Map => M[I <- block(Name, I, A, .Set, SetItem(I +Int 1))] </labelInsts>
+         <instNum> I => I +Int 1 </instNum>
+         requires K =/=K .K
+
+    rule <k> labelInst(Name:K,  A:KItem ~> K:K, Prev:K)
+            => labelInst(Name, K, Prev) ...</k>
+         <labelInsts> M:Map => M[I <- block(Name, I, A, SetItem(I -Int 1), SetItem(I +Int 1))] </labelInsts>
+         <instNum> I => I +Int 1 </instNum>
+         requires K =/=K .K
+
+    rule <k> labelInst(Name:K,  A:KItem, Prev:K)
+            => .K ...</k>
+         <firstLastInst> M':Map => M'[Name <- firstLast(Prev, I)] </firstLastInst>
+         <labelInsts> M:Map => M[I <- block(Name, I, A, SetItem(I -Int 1), .Set)] </labelInsts>
          <instNum> I => I +Int 1 </instNum>
 
-    rule labelInst(Name:SymbolicValueRef, setBlock(K:K) ~> K:K) => labelInst(Name, K)
 
-    rule <k> labelInst(Name:SymbolicValueRef, A:KItem ~> K:K)
-               => labelInst(Name, K) ...</k>
-         <labelInsts> M:Map => M[I <- A] </labelInsts>
-         <instNum> I => I +Int 1 </instNum>
+    rule <k> fillFirstLasts => fillFirstLasts(M) ...</k>
+         <firstLastInst> M:Map </firstLastInst>
 
-    rule <k> labelInst(Name:SymbolicValueRef, .K) => labelInstNextBlock(.K, Out) ...</k>
+    rule fillFirstLasts(.Map) => .K
+    rule fillFirstLasts((Name:K |-> C:K) M:Map) => fillFirstLast(Name, C) ~> fillFirstLasts(M)
+
+    rule <k> fillFirstLast(Name:K, firstLast(First:K, Last:K))
+             => fillFirst(First, In, .K) ~> fillLast(Last, Out, .K) ...</k>
          <currModule> ModName:SymbolicValueRef </currModule>
          <funModuleName> ModName:SymbolicValueRef </funModuleName>
-         <functionName> FuName:SymbolicValueRef </functionName>
-         <currFunction> FuName:SymbolicValueRef </currFunction>
-         <basicBlocks>... Name |-> blockContent(_:K, Out:Set, _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+        <currFunction> FunName:SymbolicValueRef </currFunction>
+        <functionName> FunName:SymbolicValueRef </functionName>
+        <basicBlocks>... Name:K |->
+                       blockContent(_:K, Out:Set, In:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
 
-    rule labelInstNextBlock(.K, .Set) => .K
-    rule labelInstNextBlock(.K, SetItem(A:K) S:Set) => labelInstNextBlock(A, S)
+    rule fillFirst(First:K, .Set, .K) => .K
+    rule fillFirst(First:K, SetItem(A:K) S:Set, .K) => fillFirst(First, S, A)
 
-    rule <k> labelInstNextBlock(A:SymbolicValueRef, S:Set)
-             => labelInstNextBlock(.K, S) ~> labelInst(A, C) ...</k>
-         <visitedBlocks> S:Set (.Set => SetItem(A)) </visitedBlocks>
-         <currModule> ModName:SymbolicValueRef </currModule>
-         <funModuleName> ModName:SymbolicValueRef </funModuleName>
-         <functionName> FuName:SymbolicValueRef </functionName>
-         <currFunction> FuName:SymbolicValueRef </currFunction>
-         <basicBlocks>... A |-> blockContent(C:K, _:Set, _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
-         requires notBool A in S
+    rule <k> fillFirst(First:K, S:Set, A:K) => fillFirst(First, S, .K) ...</k>
+         <firstLastInst>... A |-> firstLast(Start:K, Final:K) ...</firstLastInst>
+         <labelInsts>... First:K |-> block(_:K, _:K, _:K, FirstSet:Set (.Set => SetItem(Final)), _:Set) ...</labelInsts>
 
-    rule <k> labelInstNextBlock((A:SymbolicValueRef => .K), S:Set)  ...</k>
-         <visitedBlocks> S:Set </visitedBlocks>
-         requires A in S
+    rule fillLast(Last:K, .Set, .K) => .K
+    rule fillLast(Last:K, SetItem(A:K) S:Set, .K) => fillLast(Last, S, A)
 
+    rule <k> fillLast(Last:K, S:Set, A:K) => fillLast(Last, S, .K) ...</k>
+         <firstLastInst>... A |-> firstLast(Start:K, Final:K) ...</firstLastInst>
+         <labelInsts>... Last:K |-> block(_:K, _:K, _:K, _:Set, LastSet:Set (.Set => SetItem(Start))) ...</labelInsts>
+
+
+    syntax Set ::= "setOfLabels" [function]
+
+    syntax KItem ::= label(KLabel)
+
+    rule setOfLabels => SetItem(label('poisonVal)) SetItem(label('undef)) SetItem(label('vararg))
+                        SetItem(label('theAdd)) SetItem(label('theSub)) SetItem(label('theMul))
+                        SetItem(label('assign)) SetItem(label('instruction)) SetItem(label('store))
+                        SetItem(label('fence)) SetItem(label('ret)) SetItem(label('invoke))
+                        SetItem(label('alloca)) SetItem(label('switch)) SetItem(label('conditional))
+                        SetItem(label('theTrunc)) SetItem(label('load))
 /*
                    | "entryBlock"
                    | exitBlock(K, K) //name, prev inst
@@ -230,11 +275,11 @@ endmodule
 module LLVM-CTL-SYNTAX
     imports LLVM-SEMANTICS
 
-    syntax EquationLabel ::= "normal" | "otherwise"
-    syntax Equation ::= theEq(K, ElemList, EquationLabel)
-    syntax EquationList ::= List{Equation, ""}
+    //syntax EquationLabel ::= "normal" | "otherwise"
+    syntax Pattern ::= theEq(K)
+    syntax PatternList ::= List{Pattern, ""}
 
-    syntax InstLevel ::= Id "(" Id ")" "<=>" EquationList   [onlyLabel, klabel('theEquation)]
+    syntax InstLevel ::= Id "(" Id ")" "<=>" PatternList   [onlyLabel, klabel('thePattern)]
 
     syntax TheAtomic ::= Id "(" Id ")"                      [onlyLabel, klabel('ruleName)]
 /*
@@ -270,6 +315,31 @@ module LLVM-CTL
     imports LLVM-CTL-SYNTAX
     imports LLVM-SEMANTICS
     imports LLVM-CONNECTION
+
+    syntax KItem ::= matchSubst(K, K) //var -> item
+    syntax KItem ::= tupleResult(K, K) // inst label, inst subst
+    syntax KResult ::= validSubst(Set) //set of tupleResult
+
+    syntax KItem ::= KItem ":" KItem [onlyLabel, klabel('hasType)]
+
+    syntax KItem ::= interpret(K, K) //terms, rules
+                   | interpret(KList, KList)
+
+    syntax Int ::= size(KList) [function]
+
+    rule size(.KList) => 0
+    rule size(_:K,, Kl:KList) => 1 +Int size(Kl)
+
+
+    rule interpret(.KList, .KList) => .K
+    rule interpret(A:K,, Kl:KList, B:K,, Kl':KList) => interpret(A, B) ~> interpret(Kl, Kl')
+
+    rule interpret(A:KLabel(Kl:KList), A:KLabel(Kl':KList)) => interpret(Kl, Kl')
+         requires size(Kl) ==Int size(Kl')
+
+    rule <k> interpret(A:KLabel(.KList), E:Id) </k>
+         <substs> M:Map => M[E <- A(.KList)] </substs>
+
 /*
     rule uses(a) <=> theEq(theAdd(T, hasType(a, var), hasType(b, var))
                                     ,valValue(a),valValue(b),normal)
