@@ -237,7 +237,7 @@ this by defining the corresponding set and map operations for the boolean
 algebraic operations of CTL. Thus, `not` means set complement (look for
 variables not mentioned by the instruction), `or` means map union, and `and`
 means map intersection. Additionally, the path predicates of CTL (such as `E->
-P` "there exists a succesor where `P` is true") must have the corresponding
+P` "there exists a successor where `P` is true") must have the corresponding
 substitution map algebras defined for them. This is much trickier, and what we
 are currently working on.
 
@@ -274,7 +274,7 @@ Testing Strategy
 ----------------
 
 So far we have only been hand-testing the semantics of CTL formulae solvers on
-toy-graphs (where we explicitely provide which atomic predicates are true at
+toy-graphs (where we explicitly provide which atomic predicates are true at
 each node). We also have tested the instruction labelling to make sure we can
 have CFGs with instructions as basic blocks (instead of LLVM basic blocks).
 
