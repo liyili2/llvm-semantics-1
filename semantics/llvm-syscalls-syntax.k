@@ -2,30 +2,31 @@
 
 module LLVM-SYSCALLS-SYNTAX
 
-    syntax KLabel ::= syscallHandler(K) [function]
+    syntax KItem ::= syscallHandler(K, K) [function]
 
-    syntax KLabel ::= "'sys-write"
-    rule syscallHandler(4) => 'sys-write
+    syntax KItem ::= "sys-write" "(" K ")" 
+    rule syscallHandler(4, L) => sys-write(L)
 
-    syntax KLabel ::= "'sys-getpid"
-    rule syscallHandler(20) => 'sys-getpid
+    syntax KItem ::= "sys-getpid" "(" K ")" 
+    rule syscallHandler(20, L) => sys-getpid(L)
 
-    syntax KLabel ::= "'sys-brk"
-    rule syscallHandler(45) => 'sys-brk
+    syntax KItem ::= "sys-brk" "(" K ")" 
+    rule syscallHandler(45, L) => sys-brk(L)
 
-    syntax KLabel ::= "'sys-ioctl"
-    rule syscallHandler(54) => 'sys-ioctl
+    syntax KItem ::= "sys-ioctl" "(" K ")" 
+    rule syscallHandler(54, L) => sys-ioctl(L)
 
-    syntax KLabel ::= "'sys-rt-sigprocmask"
-    rule syscallHandler(175) => 'sys-rt-sigprocmask
+    syntax KItem ::= "sys-rt-sigprocmask" "(" K ")"
+    rule syscallHandler(175, L) => sys-rt-sigprocmask(L)
 
-    syntax KLabel ::= "'sys-gettid"
-    rule syscallHandler(224) => 'sys-gettid
+    syntax KItem ::= "sys-gettid" "(" K ")" 
+    rule syscallHandler(224, L) => sys-gettid (L)
 
-    syntax KLabel ::= "'sys-exit-group"
-    rule syscallHandler(248) => 'sys-exit-group
+    syntax KItem ::= "sys-exit-group" "(" K ")" 
+    rule syscallHandler(248, L) => sys-exit-group(L)
 
-    syntax KLabel ::= "'sys-tgkill"
-    rule syscallHandler(268) => 'sys-tgkill
+    syntax KItem ::= "sys-tgkill" "(" K ")"
+    rule syscallHandler(268, L) => sys-tgkill(L)
+
 
 endmodule

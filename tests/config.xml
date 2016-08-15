@@ -8,8 +8,10 @@
       results="parsing-results"
       extension="ll"
       >
+      <kompile-option name="--syntax-module" value="LLVM-SYNTAX-NEW" />
     <all-programs>
       <krun-option name="--smt" value="none" />
+      <krun-option name="--parser" value="./script" />
     </all-programs>
   </test>
 </tests>

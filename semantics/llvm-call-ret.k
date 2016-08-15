@@ -6,8 +6,11 @@ requires "llvm-helpers.k"
 requires "llvm-standard-library-syntax.k"
 requires "llvm-syscalls-syntax.k"
 requires "llvm-configuration.k"
+requires "kast.k"
+requires "domains.k"
 
 module LLVM-CALL-RET
+    imports KCELLS
     imports LLVM-SYNTAX
     imports LLVM-ABSTRACTSYNTAX
     imports LLVM-SETTINGS
@@ -17,11 +20,13 @@ module LLVM-CALL-RET
     imports LLVM-CONFIGURATION
 
     syntax KItem ::= frame(K, Bag)
+    // TODO [LP]: Bag probably shouldn't be used here
+
     syntax KItem ::= bind(ElemList, ElemList)
 
     rule arguments(L:ElemList) => L
 
-    rule arg(A:K, T:K, V:K) => V
+    rule arg(A:Set, T:K, V:K) => V
 
     // TODO: rename tail
     // grabbing argument names
@@ -71,7 +76,7 @@ module LLVM-CALL-RET
 
     // might need a way to convert nonmatching types here?  depends on semantics
     rule
-        <k> bind((valValue(Arg:K), Args:ElemList), (val(arg(_, _, Formal:K)), Formals:ElemList))
+        <k> bind(elemCons(valValue(Arg:K), Args:ElemList), elemCons(val(arg(_, _, Formal:K)), Formals:ElemList))
             => assign(Formal, Arg)
             ~> bind(Args, Formals)
         ...</k>
@@ -79,12 +84,12 @@ module LLVM-CALL-RET
         <k> bind(.ElemList, .ElemList) => .K ...</k>
 
     rule
-        <k> bind((valValue(Arg:K), L:ElemList
-                  => L), val(vararg)) ...</k>
+        <k> bind(elemCons(valValue(Arg:K), L:ElemList
+                  => L), elemCons(val(vararg), .ElemList)) ...</k>
         <valist>... .List => ListItem(Arg) </valist>
 
     rule
-        <k> bind(.ElemList, val(vararg)) => .K ...</k>
+        <k> bind(.ElemList, elemCons(val(vararg), .ElemList)) => .K ...</k>
 
     // TODO this isn't great.  would be better to check type when doing the call/returning and handle appropriately
     syntax KItem ::= "clearVoid"
@@ -102,7 +107,7 @@ module LLVM-CALL-RET
 
     rule
         <k> clearLocalMemory((ListItem(Base:Int) => .List) _) ...</k>
-        (<object>... <basePtr> Base:Int </basePtr> ...</object> => .)
+        (<object>... <basePtr> Base:Int </basePtr> ...</object> => .Bag)
 
     rule clearLocalMemory(.List) => .K
 

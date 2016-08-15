@@ -29,12 +29,12 @@ module LLVM-BRANCHING
         <k> conditional(I:Int, Label:K, _)
             => unconditional(Label:K)
         </k>
-        when normalizingInt(integerType(1), I) ==Int 1
+        //when normalizingInt(integerType(1), I) ==Int 1
     rule
         <k> conditional(I:Int, _, Label:K)
             => unconditional(Label:K)
         </k>
-        when normalizingInt(integerType(1), I) ==Int 0
+        //when normalizingInt(integerType(1), I) ==Int 0
 
     // TODO put static switch information into a map like with phi nodes
     // TODO semantic design pattern: list traversal -> statically storing info and using simple rules later
@@ -43,14 +43,16 @@ module LLVM-BRANCHING
             => unconditional(Label:K)
 
     rule [switch-hit]:
-        switch(Type:KResult, I:Int, _, valValue(caseValue(I':Int, Label:K)), L:ElemList)
+        switch(Type:KResult, I:Int, _, elemCons(valValue(caseValue(I':Int, Label:K)), L:ElemList))
             => unconditional(Label:K)
-        when I ==Int deNormalizingInt(Type, normalizingInt(Type, I))
+        //when I ==Int deNormalizingInt(Type, normalizingInt(Type, I))
 
     rule [switch-miss]:
         switch(Type:KResult, I:Int, La:K,
-                valValue(caseValue(I':Int, Label:K)), L:ElemList)
+                elemCons(valValue(caseValue(I':Int, Label:K)), L:ElemList))
           => switch(Type:KResult, I:Int, La:K, L:ElemList)
-        when I =/=Int deNormalizingInt(Type, normalizingInt(Type, I))
+        //when I =/=Int deNormalizingInt(Type, normalizingInt(Type, I))
+
+// TODO [LP]: Uncomment out these 4 when clauses, fix errors
 
 endmodule

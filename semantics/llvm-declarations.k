@@ -22,7 +22,7 @@ module LLVM-DECLARATIONS
 
     // TODO: semantic design pattern: assignment rule
     rule
-        <k> alias(Mod:K, X:SymbolicValueRef, K:K) => . ...</k>
+        <k> alias(Mod:Set, X:SymbolicValueRef, K:K) => . ...</k>
         <globalRegisters> Map:Map => Map[X <- K] </globalRegisters>
 
     // TODO KListToK module sections
@@ -53,15 +53,15 @@ module LLVM-DECLARATIONS
         <typedefs> M:Map => M[X <- UnresolvedType] </typedefs>
 
     rule [typedef-lookup]:
-        <k> 'namedType(X:LocalName) => UnresolvedType ...</k>
-        <typedefs>... X |-> UnresolvedType:K ...</typedefs>
+        <k> namedType(X:LocalName) => UnresolvedType ...</k>
+        <typedefs>... X |-> UnresolvedType ...</typedefs>
 
     // TODO: hack because hybrids don't seem to be working
     rule fields(L:ElemList) => L
     rule types(L:ElemList) => L
     //rule funptr(A:SymbolicValueRef) => A
 
-    rule
+    /*rule
         <k> functionDef(Attributes:Set,RetType:KResult, Label:SymbolicValueRef, Arguments:K, F:K)
             => setInitBlock(F) ~> checkSingleAssignment(F) ...</k>
         <currFunction> _ => Label </currFunction>
@@ -90,12 +90,13 @@ module LLVM-DECLARATIONS
                 <formalParameters> Arguments:K </formalParameters>
                 <functionName> Label </functionName>
             ...</function>
-        )
+        )*/
+// TODO [LP]: Uncomment out above and fix assertion error
 
     rule BB:BasicBlock BBL:BasicBlockList => BB ~> BBL
 
     //rule for setting initial basic block of a given block
-    rule <k> setInitBlock(I:InstructionList B:BBTerminatorInstruction) => .K ...</k>
+    /*rule <k> setInitBlock(I:InstructionList B:BBTerminatorInstruction) => .K ...</k>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>
         <currFunction> FunName:SymbolicValueRef </currFunction>
@@ -126,7 +127,9 @@ module LLVM-DECLARATIONS
         <funModuleName> ModName </funModuleName>
         <currFunction> FunName:SymbolicValueRef </currFunction>
         <functionName> FunName </functionName>
-        <initialBasicBlock> _ => addNameToString(L) </initialBasicBlock>
+        <initialBasicBlock> _ => addNameToString(L) </initialBasicBlock>*/
+// TODO [LP]: Uncomment out these rules and fix assertion error
+
 /*
     rule
         <k> basicBlock(Name:SymbolicValueRef, K:K) => .K ...</k>
@@ -136,6 +139,8 @@ module LLVM-DECLARATIONS
         <functionName> FunName:SymbolicValueRef </functionName>
         <basicBlocks>... .Map => Name:SymbolicValueRef |-> (setBlock(Name) ~> K:K) ...</basicBlocks>
 */
+// NB: don't uncomment out above, it is commented out in working version
+
     rule
         <k> setBlock(Label:SymbolicValueRef) => .K ...</k>
         <currBlock> Label':SymbolicValueRef => Label </currBlock>

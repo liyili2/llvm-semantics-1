@@ -43,54 +43,56 @@ module LLVM-ARITHMETIC
 
     rule [add]:
         theAdd(Type:KResult, I1:KResult , I2:KResult)
-            => flagStage(getIntType(Type), applyInts('add(.KList), getIntType(Type),
+            => flagStage(getIntType(Type), applyInts(add, getIntType(Type),
                              deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I1))
                                    , deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I2)))
-                            , applyInts('add(.KList), getIntType(Type),
+                            , applyInts(add, getIntType(Type),
                              normalizingInt(getIntType(Type), I1), normalizingInt(getIntType(Type), I2)))
     rule [sub]:
         theSub(Type:KResult, I1:KResult , I2:KResult)
-            => flagStage(getIntType(Type), applyInts('sub(.KList), getIntType(Type),
+            => flagStage(getIntType(Type), applyInts(sub, getIntType(Type),
                              deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I1))
                                    , deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I2)))
-                            , applyInts('sub(.KList), getIntType(Type),
+                            , applyInts(sub, getIntType(Type),
                              normalizingInt(getIntType(Type), I1), normalizingInt(getIntType(Type), I2)))
 
     rule [mul]:
         theMul(Type:KResult, I1:KResult , I2:KResult)
-            => flagStage(getIntType(Type), applyInts('mul(.KList), getIntType(Type),
+            => flagStage(getIntType(Type), applyInts(mul, getIntType(Type),
                              deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I1))
                                    , deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I2)))
-                            , applyInts('mul(.KList), getIntType(Type),
+                            , applyInts(mul, getIntType(Type),
                              normalizingInt(getIntType(Type), I1), normalizingInt(getIntType(Type), I2)))
 
     rule [shl]:
         theShl(Type:KResult, I1:KResult , I2:KResult)
-            => flagStage(getIntType(Type), applyInts('shl(.KList), getIntType(Type),
+            => flagStage(getIntType(Type), applyInts(shl, getIntType(Type),
                              deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I1))
                                    , deNormalizingInt(getIntType(Type), normalizingInt(getIntType(Type), I2)))
-                            , applyInts('shl(.KList), getIntType(Type),
+                            , applyInts(shl, getIntType(Type),
                              normalizingInt(getIntType(Type), I1), normalizingInt(getIntType(Type), I2)))
-        requires I2 <Int getIntInIntType(getIntType(Type))
+        //requires I2 <Int getIntInIntType(getIntType(Type))
+// TODO [LP]: Uncomment out this requires clause and fix error
 
     rule [shl-failed]:
         <k> theShl(Type:KResult, I1:KResult , I2:KResult) ~> K => .K </k>
-         <output>... .List => ListItem("error: undefined behavior") </output>
-        requires I2 >=Int getIntInIntType(getIntType(Type))
+         <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
+        //requires I2 >=Int getIntInIntType(getIntType(Type))
+// TODO [LP]: Uncomment out this requires clause and fix error
 
     rule [or]:
         theOr(Type:KResult, I1:KResult , I2:KResult)
-            => applyInts('or(.KList), getIntType(Type),
+            => applyInts(or, getIntType(Type),
                              normalizingInt(getIntType(Type), I1), normalizingInt(getIntType(Type), I2))
 
     rule [xor]:
         theXor(Type:KResult, I1:KResult , I2:KResult)
-            => applyInts('xor(.KList), getIntType(Type),
+            => applyInts(xor, getIntType(Type),
                              normalizingInt(getIntType(Type), I1), normalizingInt(getIntType(Type), I2))
 
     rule [and]:
         theAnd(Type:KResult, I1:KResult , I2:KResult)
-            => applyInts('and(.KList), getIntType(Type),
+            => applyInts(and, getIntType(Type),
                              normalizingInt(getIntType(Type), I1), normalizingInt(getIntType(Type), I2))
 
     rule
@@ -141,6 +143,7 @@ module LLVM-FLOATING-POINT-ARITHMETIC
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
+    
 
     rule
         <k> theFAdd(Type:KResult, F1:Float, F2:Float)
@@ -158,7 +161,9 @@ module LLVM-FLOATING-POINT-ARITHMETIC
         ...</k>
 
     // TODO incorrect since NaN * 0 = NaN
-    rule theFMul(_, F:#Float, PositiveZero) => 0.0
+    //rule theFMul(_, F:Float, PositiveZero) => 0.0 :: Float
+
+    // TODO [LP]: correct this rule (why was #Float used?) and make it kompile
 
 endmodule
 
@@ -169,7 +174,7 @@ module LLVM-GEP
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     syntax KItem ::= gep(K)    [strict]
 
@@ -178,7 +183,7 @@ module LLVM-GEP
         <k> getElementPtr(Type:KResult, PtrVal:Loc, Indices:ElemList)
             => gep(Type)
         ...</k>
-        (. =>
+        (.Bag =>
             <gepInfo>...
                 // <gepType> Type </gepType>
                 <gepResult> PtrVal </gepResult>
@@ -193,9 +198,9 @@ module LLVM-GEP
                 <gepIndices> .K </gepIndices>
                 <gepResult> Loc:Loc </gepResult>
             ...</gepInfo>
-            => .
+            => .Bag
         )
-
+	
     // rule <gepType> Type:KResult => Type </gepType>
 
     // TODO this is pretty ugly
@@ -239,7 +244,7 @@ module LLVM-HELPERS-SPLIT-BYTES
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     syntax KItem ::= splitIntegerBytes(K, K, K) // value, numBytes, type
     syntax KItem ::= "splitIntegerBytes'" "(" K "," K "," List ")" // value, numbytes, accumulator
@@ -338,7 +343,7 @@ module LLVM-HELPERS-SPLIT-BYTES
         when NumBytes >Int 0
 
     rule
-        <k> splitPointerBytes((zeroinitializer => 'nullOfConstValueRef(.KList)), _) ...</k>
+        <k> splitPointerBytes((zeroinitializer => nullOfConstValueRef), _) ...</k>
     rule
         <k> splitPointerBytes(Loc:Loc, NumBytes:Int)
             => splitPointerBytes'(Loc:Loc, NumBytes, 0, .List)
@@ -402,7 +407,7 @@ module LLVM-HELPERS-JOIN-BYTES
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     syntax KItem ::= joinIntBytes(K, K, K, K)
     syntax KItem ::= joinFloatBytes(K, K, K)
@@ -495,9 +500,11 @@ module LLVM-MEMORY
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
-    syntax KItem ::= "nextSym" Loc [function]
+    syntax Loc ::= "nextSym" Loc [function]
+
+    // TODO [LP]: Loc was KItem, should be allowed to be KItem but that causes error(s)   
 
     rule nextSym loc(N:Int, 0, Limit:Int, Align:Int)
                                        => loc(N:Int +Int Align, 0, undef, undef)
@@ -508,11 +515,11 @@ module LLVM-MEMORY
     rule nextSym loc(N:Int, 0, Limit:Int, undef)
                                        => loc(N:Int +Int Limit, 0, undef, undef)
 
-    syntax KItem ::= insertLimit(Loc, K) [function]
+    syntax Loc ::= insertLimit(Loc, K) [function]
     rule insertLimit(loc(A:K, B:K, Limit:K, Align:K), K:K) => loc(A, B, K, Align)
-    syntax KItem ::= insertAlign(Loc, K) [function]
+    syntax Loc ::= insertAlign(Loc, K) [function]
     rule insertAlign(loc(A:K, B:K, Limit:K, Align:K), I:Int) => loc(A, B, Limit, I)
-    rule insertAlign(Loc:K, I:K) => Loc [owise]
+    rule insertAlign(Loc:Loc, I:K) => Loc [owise]
 
     rule preAlloca(Ty:K, integerType(I:Int), N:Int, Al:K)
               => alloca(Ty,normalizingInt(integerType(I:Int), N), Al) [structural]
@@ -539,13 +546,13 @@ module LLVM-MEMORY
     rule
         <k> globalAlloca(Type:KResult, N:Int, Al:K) ~> K:K
                           => .K </k>
-         <output>... .List => ListItem("error: undefined behavior") </output>
+         <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
         requires N ==Int 0
 
     rule
         <k> alloca(Type:KResult, N:Int, Al:K) ~> K:K
                           => .K </k>
-         <output>... .List => ListItem("error: undefined behavior") </output>
+         <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
         requires N ==Int 0
 
     rule
@@ -575,17 +582,18 @@ module LLVM-MEMORY
         requires Base <=Int F andBool Base >=Int I
                  andBool Base +Int Offset <=Int F andBool Base +Int Offset >=Int I
 
-    rule
+    /*rule
         <k> store(Type:KResult, V:KResult, A:KResult) ~> K:K
             => .K </k>
         <output>... .List => ListItem("error: undefined behavior") </output>
-        requires getKLabel(A) =/=KLabel 'loc
+        requires getKLabel(A) =/=KLabel 'loc*/
+// TODO [LP]: Uncomment out this rule and fix =/=KLabel stuff
 
     rule
         <k> store(Type:KResult, V:KResult, loc(Base:Int, Offset:Int, Limit:K, Align:K))
             ~> K:K  => .K </k>
         <memoryRange> value(I:Int, F:Int) </memoryRange>
-        <output>... .List => ListItem("error: undefined behavior") </output>
+        <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
         requires Base >Int F orBool Base <Int I
                  orBool Base +Int Offset >Int F orBool Base +Int Offset <Int I
 
@@ -615,35 +623,36 @@ module LLVM-MEMORY
     rule
         <k> writeBytes(listK((ListItem(N:Int) L:List)), loc(Base:Int, Offset:Int, Limit:Int, Align:K)) ~> K:K
             => .K </k>
-        <output>... .List => ListItem("error: undefined behavior") </output>
+        <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
         requires Offset >=Int Limit
 
     rule
         <k> writeBytes(listK((ListItem(N:Int) L:List)), loc(Base:Int, Offset:Int, undef, undef)) ~> K:K
             => .K </k>
-        <output>... .List => ListItem("error: undefined behavior") </output>
+        <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
 
     rule writeBytes(listK(.List), _) => .K
 
     rule
-        <k> load('pointerTypeValue(TyK:K,, A:K), loc(Base:Int, Offset:Int, Limit:K, Align:K))
+        <k> load(pointerTypeValue(TyK:K, A:K), loc(Base:Int, Offset:Int, Limit:K, Align:K))
             => read(TyK:K, loc(Base:Int, Offset:Int, Limit:K, Align:K))
         ...</k>
         <memoryRange> value(I:Int, F:Int) </memoryRange>
         requires Base <=Int F andBool Base >=Int I
                  andBool Base +Int Offset <=Int F andBool Base +Int Offset >=Int I
 
-    rule
+/*    rule
         <k> load(Type:KResult, A:KResult) ~> K:K
             => .K </k>
         <output>... .List => ListItem("error: undefined behavior") </output>
-        requires getKLabel(A) =/=KLabel 'loc
+        requires getKLabel(A) =/=KLabel 'loc*/
+// TODO [LP]: Uncomment out this rule and fix =/=KLabel stuff
 
     rule
         <k> load(Type:KResult, loc(Base:Int, Offset:Int, Limit:K, Align:K))
             ~> K:K  => .K </k>
         <memoryRange> value(I:Int, F:Int) </memoryRange>
-        <output>... .List => ListItem("error: undefined behavior") </output>
+        <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
         requires Base >Int F orBool Base <Int I
                  orBool Base +Int Offset >Int F orBool Base +Int Offset <Int I
 
@@ -658,19 +667,19 @@ module LLVM-MEMORY
             => readBytes'(Len:Int -Int 1, loc(Base:Int, Offset:Int, Limit, Align) + 1, (L:List ListItem(V:KResult)))
         ...</k>
         <basePtr> Base:Int </basePtr>
-        <bytes>... Offset |-> V:KResult ...</bytes>
+        <bytes>... Offset |-> V ...</bytes>
         when Len:Int >Int 0 andBool Offset <Int Limit
 
     rule
         <k> readBytes'(Len:Int, loc(Base:Int, Offset:Int, Limit:Int, Align:Int), L:List) ~> K:K
             => .K </k>
-        <output>... .List => ListItem("error: undefined behavior") </output>
+        <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
         requires Limit >=Int Offset andBool Len =/=Int 0
 
     rule
         <k> readBytes'(Len:Int, loc(Base:Int, Offset:Int, undef, undef), L:List) ~> K:K
             => .K </k>
-        <output>... .List => ListItem("error: undefined behavior") </output>
+        <output>... .List => ListItem("error: undefined behavior"::StringName) </output>
 
     rule readBytes'(0, _, L:List)
             => listK(L)
@@ -687,7 +696,7 @@ module LLVM-COMPARISONS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     // all of these take place only at the top of K
     // TODO these break with ==Int or =/=Int
@@ -760,7 +769,7 @@ module LLVM-CONVERSIONS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     rule [trunc]:
         theTrunc(Type:KResult, I:KResult, Type2:KResult)
@@ -845,7 +854,7 @@ module LLVM-LITERALS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     rule float(S) => String2Float(S)
     //when String2Float(S) >=Float String2Float(S)
@@ -892,7 +901,7 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     /////////////////////////////////////////////////////////
     // turning calls to intrinsics into semantic productions
@@ -903,40 +912,50 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
         // TODO why doesn't this work?
         // <k> Call(_, Callee(funptr(Name(globalVar, S:String)), listK(L:KList)))
             // => 'memcpy`(_`,_`,_`,_`,_`)(L)
-        <k> call(_, calleeValue(funptr(name(globalVar, S:String)), (valValue(V1:KResult),
-                   valValue(V2:KResult), valValue(V3:KResult), valValue(V4:KResult), valValue(V5:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, S:String)),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult),
+		    elemCons(valValue(V3:KResult),
+		    elemCons(valValue(V4:KResult),
+		    elemCons(valValue(V5:KResult), .ElemList)))))))
             => memcpy(V1, V2, V3, V4, V5)
         ...</k>
         when substrString(S, 0, 12) ==String "llvm.memcpy."
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, S:String)), (valValue(V1:KResult),
-                  valValue(V2:KResult), valValue(V3:KResult), valValue(V4:KResult), valValue(V5:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, S:String)),
+	    	    elemCons(valValue(V1:KResult),
+                    elemCons(valValue(V2:KResult),
+		    elemCons(valValue(V3:KResult),
+		    elemCons(valValue(V4:KResult),
+		    elemCons(valValue(V5:KResult), .ElemList)))))))
             => memset(V1, V2, V3, V4, V5)
         ...</k>
         when substrString(S, 0, 12) ==String "llvm.memset."
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.start")), (valValue(V1:KResult),
-                   valValue(V2:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.start")),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult), .ElemList))))
             => lifetimeStart(V1, V2)
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_0")), (valValue(V1:KResult),
-                   Vl:ElemList)))
+        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_0")),
+	    	    elemCons(valValue(V1:KResult), Vl:ElemList)))
             => call(i(32), callee(V1,arguments(.ElemList)))
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_2")), (valValue(V1:KResult),
-                   valValue(Argc:K),valValue(Argv:K),Vl:ElemList)))
-            => call(i(32), callee(V1,arguments(valValue(Argc:K),valValue(Argv:K),.ElemList)))
+        <k> call(_, calleeValue(funptr(name(globalVar, "__libc_start_main_2")), elemCons(valValue(V1:KResult),
+                   elemCons(valValue(Argc:K),elemCons(valValue(Argv:K),Vl:ElemList)))))
+            => call(i(32), callee(V1,arguments(elemCons(valValue(Argc:K),elemCons(valValue(Argv:K),.ElemList)))))
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.end")), (valValue(V1:KResult),
-                  valValue(V2:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.end")),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult), .ElemList))))
             => lifetimeEnd(V1, V2)
         ...</k>
 
@@ -946,8 +965,9 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.va_copy")), (valValue(V1:KResult),
-                  valValue(V2:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.va_copy")),
+	    	    elemCons(valValue(V1:KResult),
+		    elemCons(valValue(V2:KResult), .ElemList))))
             => vaCopy(V1, V2)
         ...</k>
 
@@ -970,12 +990,12 @@ module LLVM-STANDARD-LIBRARY
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     // memcpy
     rule
         <k> memcpy(Dest:Loc, Src:Loc, Len:Int, K1:K, K2:K)
-            => store(byteType, load('pointerType(byteType,, 0), Src), Dest)
+            => store(byteType, load(pointerType(byteType,, 0), Src), Dest)
             ~> memcpy(Dest + 1, Src + 1, Len -Int 1, K1, K2)
         ...</k>
         when Len >Int 0
@@ -1021,11 +1041,12 @@ module LLVM-SYSCALLS-PREPROCESS
     imports LLVM-HELPERS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
-    imports LLVM-SYSCALLS-SYNTAX
+    imports LLVM-SYSCALLS-SYNTAX    
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "__syscall")), (valValue(N:Int), L:ElemList)))
-            => (syscallHandler(N))(L)
+        <k> call(_, calleeValue(funptr(name(globalVar, "__syscall")),
+		    elemCons(valValue(N:Int), L:ElemList)))
+            => (syscallHandler(N,L))
         ...</k>
 endmodule
 
@@ -1037,34 +1058,37 @@ module LLVM-SYSCALLS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
+    
 
-    rule <k> 'sys-ioctl(_) => 0 ...</k>
-    rule <k> 'sys-rt-sigprocmask(_) => 0 ...</k>
-    rule <k> 'sys-gettid(_) => 0 ...</k>
+    rule <k> sys-ioctl(_) => 0 ...</k>
+    rule <k> sys-rt-sigprocmask(_) => 0 ...</k>
+    rule <k> sys-gettid(_) => 0 ...</k>
 
     //there might be a problem here. about the sort of brk cell.
     rule
-        <k> 'sys-brk(ptrToIntOfLoc(_,Loc:Loc),, _) => Brk ...</k>
+        <k> sys-brk(elemCons(ptrToIntOfLoc(_,Loc:Loc), _:ElemList)) => Brk ...</k>
         <brk> Brk:Loc </brk>
-        when Loc ==K 'nullOfConstValueRef(.KList)
+        when Loc ==K nullOfConstValueRef
 
 
     // TODO krun should provide this value
-    rule <k> 'sys-getpid(_) => 10000 ...</k>
+    rule <k> sys-getpid(_) => 10000 ...</k>
 
     syntax KItem ::= printString(K) [strict]
     syntax KItem ::= readString(K, K)
     syntax KItem ::= "readString'" "(" K "," K "," K ")"
 
     rule
-        <k> 'sys-write(FileDesc:Int,, ptrToIntOfLoc(_, Loc:Loc),, Len:Int,, _)
+        <k> sys-write(elemCons(FileDesc:Int,
+		elemCons(ptrToIntOfLoc(_, Loc:Loc),
+		elemCons((Len:Int), _:ElemList))))
             => printString(readString(Loc, Len))
         ...</k>
         when Len >=Int 0
 
     rule
         <k> readString(Loc:Loc, Len:Int)
-            => readString'(Loc, Len, "")
+            => readString'(Loc, Len, ""::StringName)
         ...</k>
         when Len >=Int 0
 
@@ -1101,6 +1125,7 @@ module LLVM-INTERNAL-TESTING-FUNCTIONS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
+    
 
     rule
         <k> call(_, calleeValue(funptr(name(globalVar, S:String)), (valValue(I:Int))))
@@ -1119,7 +1144,6 @@ module LLVM-EXCEPTIONS
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
-
 
 /*
     rule
@@ -1172,4 +1196,5 @@ module LLVM-SEMANTICS
 
     imports LLVM-INTERNAL-TESTING-FUNCTIONS
     imports LLVM-EXCEPTIONS
+    
 endmodule

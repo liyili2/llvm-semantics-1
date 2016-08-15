@@ -62,23 +62,26 @@ module LLVM-CONFIGURATION
                     <basePtr color="orange" type="Key"> -1 </basePtr>
                     <type> .K </type>
                     <size> 0 </size>
-                    <align> 'alignEmpty(.KList) </align>
+                    <align> alignEmpty </align>
                     <bytes> .Map </bytes>
                 </object>
             </memory>
             // auxiliary cells:
             <gepInfo multiplicity="?" color="red">
                 <gepType> .K </gepType>
-                <gepResult> 0 </gepResult>
+                <gepResult> .K </gepResult>
+		// TODO [LP]: change initial value of gepResult to whatever it should be
                 <gepIndices> .K </gepIndices>
             </gepInfo>
             <output stream="stdout" color="DodgerBlue"> .List </output>
             <modules color="teal">
                 <module multiplicity="*" color="LightSkyBlue">
                     <moduleName color="orange"> name(globalVar, "") </moduleName>
-                    <targetLayout> "" </targetLayout>
-                    <targetTriple> "" </targetTriple>
-                    <typedefs> .Map </typedefs>
+                    <targetLayout> ""::StringName </targetLayout>
+                    <targetTriple> ""::StringName </targetTriple>
+		    // TODO [LP]: make sure above is correct
+
+		    <typedefs> .Map </typedefs>
                     <savedGlobals> .K </savedGlobals>
                     <globalFunVarCounter> 0 </globalFunVarCounter>
                     <attributeGroups> .Map </attributeGroups>

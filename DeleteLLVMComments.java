@@ -119,6 +119,9 @@ public class DeleteLLVMComments {
                                             newLine += currentLine.charAt(i);
                                             String content = getCStringContent(currentLine, i + 1);
                                             for(int j = 0; j < content.length(); ++j){
+						if (!isInQuoteBlock && content.charAt(j) == ';') {
+						    break;
+						}
                                                 newLine += content.charAt(j);
                                                 i++;
                                                 if(content.charAt(j) == '\\'){
