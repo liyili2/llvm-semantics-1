@@ -74,10 +74,11 @@ public class DeleteLLVMComments {
      */
     public static void main(String[] args) throws InterruptedException {
         
-        //if(args.length == 0){
-        //    System.err.println("Haven't specified the input program.");
-        //}
-        String fileName = "printNum.ll";
+        if(args.length == 0){
+            System.err.println("Haven't specified the input program.");
+        }
+        //String fileName = "printNum.ll";
+        String fileName = args[0];
         File llvmFile = new File(fileName);
         String newLine = "";
         if(llvmFile.isFile()){//if input file exists.
@@ -98,58 +99,60 @@ public class DeleteLLVMComments {
                 while(scanner.hasNextLine()){
                     String currentLine = scanner.nextLine();
                     
-                    for(int i = 0; i < currentLine.length(); ++i){
-                        if(isSpecifiedChar(currentLine.charAt(i))){                                           //reach to a specified character, ),],}
-                            newLine += currentLine.charAt(i);
-                            if(i+1 < currentLine.length()){                                                   //checker index 
-                                if(isCharC(currentLine.charAt(i+1))){                                         //
-                                    i++;
-                                    newLine += currentLine.charAt(i);
-                                    for(int j = i + 1; j < currentLine.length(); ++j){
-                                        if(currentLine.charAt(j) == ' '){
-                                            i++;
-                                            newLine += currentLine.charAt(j);
-                                        } else {
-                                            break;
-                                        }
-                                    }
-                                    if(i+1 < currentLine.length()){
-                                        if(currentLine.charAt(i+1) == '\"'){
-                                            i++;
-                                            newLine += currentLine.charAt(i);
-                                            String content = getCStringContent(currentLine, i + 1);
-                                            for(int j = 0; j < content.length(); ++j){
-                                                newLine += content.charAt(j);
+                    if (!currentLine.startsWith("source_filename =")){
+                        for(int i = 0; i < currentLine.length(); ++i){
+                            if(isSpecifiedChar(currentLine.charAt(i))){                                           //reach to a specified character, ),],}
+                                newLine += currentLine.charAt(i);
+                                if(i+1 < currentLine.length()){                                                   //checker index 
+                                    if(isCharC(currentLine.charAt(i+1))){                                         //
+                                        i++;
+                                        newLine += currentLine.charAt(i);
+                                        for(int j = i + 1; j < currentLine.length(); ++j){
+                                            if(currentLine.charAt(j) == ' '){
                                                 i++;
-                                                if(content.charAt(j) == '\\'){
-                                                    if(j+1 < content.length()){
-                                                        if(isHexCharacter(content.charAt(j+1))){
-                                                            newLine += 'x';
+                                                newLine += currentLine.charAt(j);
+                                            } else {
+                                                break;
+                                            }
+                                        }
+                                        if(i+1 < currentLine.length()){
+                                            if(currentLine.charAt(i+1) == '\"'){
+                                                i++;
+                                                newLine += currentLine.charAt(i);
+                                                String content = getCStringContent(currentLine, i + 1);
+                                                for(int j = 0; j < content.length(); ++j){
+                                                    newLine += content.charAt(j);
+                                                    i++;
+                                                    if(content.charAt(j) == '\\'){
+                                                        if(j+1 < content.length()){
+                                                            if(isHexCharacter(content.charAt(j+1))){
+                                                                newLine += 'x';
+                                                            }
                                                         }
                                                     }
                                                 }
+                                            } else {
+                                                continue;
                                             }
                                         } else {
-                                            continue;
+                                            break;
                                         }
                                     } else {
-                                        break;
+                                        continue;
                                     }
-                                } else {
-                                    continue;
+                                } else {                                                                          //move the index from the specified character to the next, reach to the end of the line 
+                                    break;
                                 }
-                            } else {                                                                          //move the index from the specified character to the next, reach to the end of the line 
-                                break;
+                            } else {                                                                              //reach to a non-specified-character, then, just add it.
+                                char currentChar = currentLine.charAt(i);
+                                if(currentChar == '"'){
+                                    isInQuoteBlock = ! isInQuoteBlock;
+                                } else if(!isInQuoteBlock
+                                            && currentChar == ';'){
+                                    break;
+                                }
+                                newLine += currentChar;
                             }
-                        } else {                                                                              //reach to a non-specified-character, then, just add it.
-                            char currentChar = currentLine.charAt(i);
-                            if(currentChar == '"'){
-                                isInQuoteBlock = ! isInQuoteBlock;
-                            } else if(!isInQuoteBlock
-                                        && currentChar == ';'){
-                                break;
-                            }
-                            newLine += currentChar;
                         }
                     }
                     newLine += "\n";
