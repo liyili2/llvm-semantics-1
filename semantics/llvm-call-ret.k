@@ -46,6 +46,14 @@ module LLVM-CALL-RET
             ~> setBlock(basicBlockNum(Count, IBBName)) ~>
                blockExecution(basicBlockNum(Count, IBBName), formInstList(1, .K, Body))
         </k>
+
+        <k> tailCall(_, calleeValue(funptr(FunName:SymbolicValueRef), Args:ElemList)) ~> Tail:K
+            => tailContextSwitch(FunName)
+            ~> bind(Args, Formals)
+            ~> setBlock(basicBlockNum(Count, IBBName)) ~>
+               blockExecution(basicBlockNum(Count, IBBName), formInstList(1, .K, Body))
+        </k>
+
         <blockCount> Count:Int => Count +Int 1 </blockCount>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>
@@ -298,10 +306,10 @@ module LLVM-CALL-RET
          )
         <callStack> .List => ListItem(frame(Tail, C, D)) ...</callStack>
 
-    syntax KItem ::= tailContextSwitch(K, K)
+    syntax KItem ::= tailContextSwitch(K)
 
     rule
-        <k> tailContextSwitch(FunName, Tail) => .K ...</k>
+        <k> tailContextSwitch(FunName) => .K ...</k>
         (<control>
             C:Bag
         </control> =>
