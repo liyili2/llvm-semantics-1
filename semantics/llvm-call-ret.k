@@ -53,7 +53,6 @@ module LLVM-CALL-RET
         <initialBasicBlock> IBBName:SymbolicValueRef </initialBasicBlock>
         [large]
 
-
     rule
         <k> tailCall(_, calleeValue(funptr(FunName:SymbolicValueRef), Args:ElemList)) ~> Tail:K
             => tailContextSwitch(FunName)
