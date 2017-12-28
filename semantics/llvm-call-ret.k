@@ -47,6 +47,18 @@ module LLVM-CALL-RET
                blockExecution(basicBlockNum(Count, IBBName), formInstList(1, .K, Body))
         </k>
 
+        <blockCount> Count:Int => Count +Int 1 </blockCount>
+        <currModule> ModName:SymbolicValueRef </currModule>
+        <funModuleName> ModName </funModuleName>
+        <functionName> FunName </functionName>
+        <formalParameters> arguments(Formals:ElemList) </formalParameters>
+        <initialBasicBlock> IBBName:SymbolicValueRef </initialBasicBlock>
+        <basicBlocks>... IBBName
+                            |-> blockContent(Body:Map, _:Bool, _:Set, _:Set, _:Set,
+                                            _:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+        [large]
+
+    rule
         <k> tailCall(_, calleeValue(funptr(FunName:SymbolicValueRef), Args:ElemList)) ~> Tail:K
             => tailContextSwitch(FunName)
             ~> bind(Args, Formals)
