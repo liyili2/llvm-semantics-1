@@ -227,6 +227,24 @@ module LLVM-CALL-RET
          )
         <callStack> .List => ListItem(frame(Tail, C, D)) ...</callStack>
 
+    syntax KItem ::= tailContextSwitch(K, K)
+
+    rule
+        <k> tailContextSwitch(FunName, Tail) => .K ...</k>
+        (<control>
+            C:Bag
+        </control> =>
+        <control>...
+            <currFunction> FunName:SymbolicValueRef </currFunction>
+        ...</control>)
+        (<tomasulo>
+            D:Bag
+         </tomasulo>
+         =>
+         <tomasulo>...
+           <instQueue> instList(.List) </instQueue>
+         ...</tomasulo>
+         )
 
     // TODO perhaps a pattern: turning a list of pairs into a map
 
