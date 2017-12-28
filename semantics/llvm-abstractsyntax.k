@@ -348,7 +348,7 @@ module LLVM-ABSTRACTSYNTAX
     syntax KItem ::= phi(K, ElemList) [strict(1)] // type, edge list
     syntax KItem ::= edge(K, K) // used by PHI
     syntax KItem ::= select(K, K, K, K) [strict] //ty, condition, true val, false val
-    syntax KItem ::= tailCall(K) [strict] //Type
+    syntax KItem ::= tailCall(K, K) [strict] //Type, Callee
 
     syntax KItem ::= call(K, K) [strict] // Type, Callee
     syntax KItem ::= callee(K, K) [strict] // Value/Name, Arguments
