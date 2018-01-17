@@ -58,11 +58,6 @@ module LLVM-CALL-RET
             => tailContextSwitch(FunName)
             ~> bind(Args, Formals)
             ~> startInitBlock(IBBName)
-<<<<<<< HEAD
-=======
-         //   ~> setBlock(basicBlockNum(Count, IBBName)) ~>
-         //      blockExecution(basicBlockNum(Count, IBBName), formInstList(1, .K, Body))
->>>>>>> 24af02d05f6ecf8cf91dab7a8e16a5af282a9a35
         </k>
 
         <currModule> ModName:SymbolicValueRef </currModule>
