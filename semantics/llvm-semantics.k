@@ -988,6 +988,12 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
         when substrString(S, 0, 12) ==String "llvm.memset."
 
     rule
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.malloc")), (valValue(V1:KResult),
+                   valValue(V2:KResult))))
+            => lifetimeStart(V1, V2)
+        ...</k>
+
+    rule
         <k> call(_, calleeValue(funptr(name(globalVar, "llvm.lifetime.start")), (valValue(V1:KResult),
                    valValue(V2:KResult))))
             => lifetimeStart(V1, V2)
