@@ -145,6 +145,7 @@ module LLVM-GLOBALS
     rule <k> initGlobals => initBuiltins(val(name(globalVar, "__libc_start_main_0")),
                                          val(name(globalVar, "__libc_start_main_2")),
                                          val(name(globalVar, "exit")),
+                                         val(name(globalVar, "llvm.malloc.")),
                                          val(name(globalVar, "llvm.memcpy.")),
                                          val(name(globalVar, "llvm.memset.")),
                                          val(name(globalVar, "llvm.lifetime.start")),
