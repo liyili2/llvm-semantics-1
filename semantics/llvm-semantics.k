@@ -541,6 +541,22 @@ module LLVM-MEMORY
     rule preAlloca(integerType(I:Int), N:Int)
               => normalizingInt(integerType(I:Int), N) [structural]
 
+    rule
+        <k> malloc(N:Int)
+                          => insertAlign(insertLimit(Loc, sizeof(Type) *Int N),Al) ...</k>
+        (.Bag =>
+            <object>...
+                <basePtr> base(Loc) </basePtr>
+                <type> Type </type>
+                <align> Al </align>
+                <size> sizeof(Type) *Int N </size>
+            ...</object>
+        )
+        <nextLoc> Loc:Loc => nextSym insertAlign(
+                       insertLimit(Loc, sizeof(Type) *Int N),Al) </nextLoc>
+        <memoryRange> value(I:Int, F:Int) => value(I, base(nextSym insertAlign(
+                       insertLimit(Loc, sizeof(Type) *Int N),Al)))      </memoryRange>
+        requires N >Int 0
 
     //use to alloc the memory for gloable variables.
     rule
@@ -988,9 +1004,8 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
         when substrString(S, 0, 12) ==String "llvm.memset."
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.malloc")), (valValue(V1:KResult),
-                   valValue(V2:KResult))))
-            => lifetimeStart(V1, V2)
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.malloc")), (valValue(V1:KResult))))
+            => malloc(V1)
         ...</k>
 
     rule
