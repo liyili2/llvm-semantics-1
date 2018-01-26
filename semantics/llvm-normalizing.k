@@ -50,6 +50,8 @@ module LLVM-NORMALIZING
     syntax KItem ::= typeCheckOp(K, K, K) //block name, var name, op
                    | typeCheckIntOp(K, K, K, K, K, K, Set, InstructionMetadatas)    
                                  [strict(4)]//block name, var name, op, ty, v1, v2, attributes, instmeta
+                   | typeCheckFloatOp(K, K, K, K, K, K, Set, InstructionMetadatas)    
+                                 [strict(4)]//block name, var name, op, ty, v1, v2, attributes, instmeta
                    | typeCheckCastOp(K, K, K, K, K, K, InstructionMetadatas)
                                 [strict(4, 6)]//block, variable, operator, T1, V, T2
                    | typeCheckArgList(K, ElemList)        [strict(2)]
@@ -123,6 +125,25 @@ module LLVM-NORMALIZING
     rule typeCheckOp(Name:SymbolicValueRef, X:SymbolicValueRef, L:LogicalOps Ty:Type V1:ValueRef,
                   V2:ValueRef Ins:InstructionMetadatas)
            => typeCheckIntOp(Name:SymbolicValueRef, X, L, Ty,
+                           addNameToString(V1), addNameToString(V2), .Set, Ins)
+
+    rule typeCheckOp(Name:SymbolicValueRef,X:SymbolicValueRef, IntOp:IntConstructors
+                             Onw:OptNW Ty:Type V1:ValueRef,
+                             V2:ValueRef Ins:InstructionMetadatas)
+           => typeCheckFloatOp(Name:SymbolicValueRef, X, IntOp, Ty,
+                           addNameToString(V1), addNameToString(V2), formSet(Onw), Ins)
+    rule typeCheckOp(Name:SymbolicValueRef,X:SymbolicValueRef, IntOp:DivConstructors
+                             Onw:OptExact Ty:Type V1:ValueRef,
+                             V2:ValueRef Ins:InstructionMetadatas)
+           => typeCheckFloatOp(Name:SymbolicValueRef, X, IntOp, Ty,
+                           addNameToString(V1), addNameToString(V2), formSet(Onw), Ins)
+    rule typeCheckOp(Name:SymbolicValueRef, X:SymbolicValueRef, L:ArithmeticOps Ty:Type V1:ValueRef,
+                  V2:ValueRef Ins:InstructionMetadatas)
+           => typeCheckFloatOp(Name:SymbolicValueRef, X, L, Ty,
+                           addNameToString(V1), addNameToString(V2), .Set, Ins)
+    rule typeCheckOp(Name:SymbolicValueRef, X:SymbolicValueRef, L:LogicalOps Ty:Type V1:ValueRef,
+                  V2:ValueRef Ins:InstructionMetadatas)
+           => typeCheckFloatOp(Name:SymbolicValueRef, X, L, Ty,
                            addNameToString(V1), addNameToString(V2), .Set, Ins)
 
     rule typeCheckOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:CastOps Ty1:Type V:ValueRef
@@ -997,6 +1018,61 @@ module LLVM-NORMALIZING
               => .K </k>
          <output>... .List => ListItem("error: invalid vector number for instruction") </output>
          requires I <=Int 0
+
+    //type checking and instruction AST from with floating point ops and logical ops.
+    rule <k> typeCheckFloatOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:K,
+                 integerType(N:Int), V1:K, V2:K, S:Set, Meta:InstructionMetadatas)
+              => exprType(typeCheckIntArgs(Name:SymbolicValueRef,
+                     integerType(N), val(V1),val(V2),.ElemList))
+                 ~> assignUses(Name, TheCount,
+                       integerType(N:Int), (val(V1),val(V2),.ElemList))
+                 ~> assignType(Name, TheCount, X, integerType(N:Int)) ...</k>
+        <instructionCounter> TheCount:Int => TheCount +Int 1 </instructionCounter>
+        <tempBlockMap> Now:Map => Now (TheCount |->
+              instNumInfo(TheCount, assign(X,instruction(getKLabelFromOp(Op)(
+                       integerType(N:Int),, V1,, V2), S,
+                     insMetas(formElemList(Meta)))), normalInst)) </tempBlockMap>
+
+    rule <k> typeCheckFloatOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:K,
+               vectorTypeValue(integerType(N:Int), I:Int),
+                          V1:K, V2:K, S:Set, Meta:InstructionMetadatas)
+              => exprType(typeCheckVectorArgs(Name:SymbolicValueRef,
+                  vectorTypeValue(integerType(N:Int), I:Int),
+                             val(V1),val(V2),.ElemList))
+                ~> assignUses(Name, TheCount,
+                       vectorTypeValue(integerType(N:Int), I:Int),
+                  (val(V1),val(V2),.ElemList))
+                 ~> assignType(Name, TheCount, X,
+                      vectorTypeValue(integerType(N:Int), I:Int)) ...</k>
+        <instructionCounter> TheCount:Int => TheCount +Int 1 </instructionCounter>
+        <tempBlockMap> Now:Map => Now (TheCount |->
+              instNumInfo(TheCount, assign(X,instruction(getKLabelFromOp(Op)(
+                   vectorTypeValue(integerType(N:Int), I:Int),, V1,, V2), S,
+                     insMetas(formElemList(Meta)))),
+                 normalInst)) </tempBlockMap>
+          requires I >Int 0
+
+    rule <k> typeCheckFloatOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:K,
+               vectorTypeValue(Ty:KResult, I:Int),
+               V1:K, V2:K, S:Set, Meta:InstructionMetadatas) ~> K
+              => .K </k>
+         <output>... .List => ListItem("error: invalid operand type for instruction") </output>
+         requires getKLabel(Ty) =/=KLabel 'integerType
+
+    rule <k> typeCheckFloatOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:K,
+               vectorTypeValue(Ty:KResult, I:Int),
+               V1:K, V2:K, S:Set, Meta:InstructionMetadatas) ~> K
+              => .K </k>
+         <output>... .List => ListItem("error: invalid vector number for instruction") </output>
+         requires I <=Int 0
+
+    rule <k> typeCheckFloatOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:K,
+                    Ty:KResult, V1:K, V2:K, S:Set, Meta:InstructionMetadatas) ~> K
+              => .K </k>
+         <output>... .List => ListItem("error: instruction requires integer or integer vector operands") </output>
+         requires getKLabel(Ty) =/=KLabel 'integerType
+                    andBool getKLabel(Ty) =/=KLabel 'vectorTypeValue
+
 
     //type checking and instruction AST from with integer ops and logical ops.
     rule <k> typeCheckIntOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:K,
