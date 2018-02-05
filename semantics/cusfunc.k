@@ -1,4 +1,4 @@
-module CUSFUNC2
+module CUSFUNC
     syntax KItem ::= ieeetest(K, K)
     syntax Int ::= #SmallPow(Int, Int) [function]
     syntax Int ::= #DivTest(Int, Int) [function]
@@ -21,12 +21,14 @@ module CUSFUNC2
     rule <k> decimal(M:Int, C:Int, R:Int, I:Int, X:Int) => R ...</k>
          requires 2 *Int M ==Int #SmallPow(M,1) andBool M >Int 0 andBool I <Int X
 
-    rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => deccou((2 *Int M) -Int Y, 10 *Int R, (10 *Int R) +Int 1, I +Int 1, X, Y) ...</k>
-         requires ((2 *Int M) /Int Y) >Int 0 andBool M >Int 0 andBool I <Int X
-    rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => deccou(2 *Int M, 10 *Int R, 10 *Int R, I +Int 1, X, Y) ...</k>
+    rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => deccou((2 *Int M) -Int Y, 10 *Int C, R +Int C, I +Int 1, X, Y) ...</k>
+         requires ((2 *Int M) /Int Y) >Int 0 andBool M >Int 0 andBool I <Int X andBool (2 *Int M) =/=Int Y
+    rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => deccou(2 *Int M, 10 *Int C, R, I +Int 1, X, Y) ...</k>
          requires ((2 *Int M) /Int Y) =Int 0 andBool M >Int 0 andBool I <Int X andBool (2 *Int M) =/=Int Y
     rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => R ...</k>
-         requires ((2 *Int M) /Int Y) =Int 0 andBool M >Int 0 andBool I <Int X andBool (2 *Int M) =Int Y
+         requires M >Int 0 andBool I <Int X andBool (2 *Int M) =Int Y
+    rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => R ...</k>
+         requires M =Int 0 andBool I <Int X
 
 
     rule #SmallPow(N,C) => #SmallPow(N,10 *Int C)
