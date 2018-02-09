@@ -3,7 +3,8 @@ module CUSFUNC
     syntax Int ::= #SmallPow(Int, Int) [function]
     syntax Int ::= #DivTest(Int, Int) [function]
     syntax Int ::= decimal(Int, Int, Int, Int, Int)
-    syntax Int ::= deccou(Int, Int, Int, Int, Int, Int)
+    syntax KItem ::= deccou(Int, Int, Int, Int, Int, Int)
+    syntax KItem ::= "ieeeFail"
 
     rule #DivTest(N:Int,C:Int) => N /Int C
 
@@ -29,6 +30,8 @@ module CUSFUNC
          requires M >Int 0 andBool I <Int X andBool (2 *Int M) =Int Y
     rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => R ...</k>
          requires M =Int 0 andBool I <Int X
+    rule <k> deccou(M:Int, C:Int, R:Int, I:Int, X:Int, Y:Int) => ieeeFail ...</k>
+         requires I >=Int X
 
 
     rule #SmallPow(N,C) => #SmallPow(N,10 *Int C)
