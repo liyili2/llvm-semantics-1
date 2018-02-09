@@ -787,6 +787,13 @@ module LLVM-NORMALIZING
               => .K </k>
          <output>... .List => ListItem("error: invalid vector number for instruction") </output>
          requires I <=Int 0
+    
+    rule <k> ieeetest(N:Float, M:Int) => ieeetest((N -Float floorFloat(N)) /Float 2, M +Int 1) ...</k>
+         requires M <Int 23
+    rule <k> ieeetest(N:Float, M:Int) => 0 ...</k>
+         requires N >=Int 23 andBool N =/=Float 0
+    rule <k> ieeetest(N:Float, M:Int) => 1 ...</k>
+         requires M <=Int 23 andBool N =Float 0
 
     //type checking and instruction AST from with floating point ops and logical ops.
     rule <k> typeCheckFloatOp(Name:SymbolicValueRef, X:SymbolicValueRef, Op:K,
