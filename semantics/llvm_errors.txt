@@ -36,4 +36,7 @@
 
 19, if cmpxchg requires that the alloca field has an alignment requirement, why does atomicrmw does not have such restriction.
 
+20, load operator does not return undef when a race happens.
+
+21, LLVM IR does not check input conditions of library functions such as printf.
 

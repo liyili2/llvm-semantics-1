@@ -72,7 +72,6 @@ module LLVM-CONFIGURATION
                 <callStack color="Goldenrod"> .List </callStack>
                 //stack for function calls
                 <control color="LightGoldenrod">
-                    <prevBlock color="Orchid"> .K </prevBlock>
                     <currBlock color="Orchid"> basicBlockNum(0, name(localVar, "Initial")) </currBlock>
                     //the current executing basic block
                     <currModule color="Orchid"> name(globalVar, "main") </currModule>

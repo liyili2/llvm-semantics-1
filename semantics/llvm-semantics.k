@@ -1826,6 +1826,8 @@ module LLVM-MEMORY
                             Avb:List, Avb':List, CML:List, ML:List)
                    => memList(.K, Ave, Avb:List, Avb':List, .List, CML ML) </toCommit>
           <specTree> M:Map => markMemOp(Bn, In,.K, M) </specTree>
+          <memChannelId> MenId:Int </memChannelId>
+          <channelId> MenId:Int </channelId>
           <memOpList> L:List (.List => ListItem(singleMem(TID:Int,
                      Bn:Int, In:Int, heap, Op:K))) </memOpList>
          requires (notBool isAWrite(Op) orBool
@@ -1839,6 +1841,8 @@ module LLVM-MEMORY
                      Bn:Int, In:Int, heap, Op:K), Ave:Set,
                             Avb:List, Avb':List, CML:List, ML:List)
                    => memList(.K, Ave, Avb:List, Avb':List, .List, CML ML) </toCommit>
+          <memChannelId> MenId:Int </memChannelId>
+          <channelId> MenId:Int </channelId>
           <memOpList> L:List (.List => ListItem(singleMem(TID:Int,
                      Bn:Int, In:Int, heap, Op:K))) </memOpList>
          requires (notBool isAWrite(Op) orBool
@@ -1854,6 +1858,8 @@ module LLVM-MEMORY
           <specTree> M:Map => markMemOp(Bn, In,.K, M) </specTree>
           <currBlock> basicBlockNum(OldCount:Int, Name:K) </currBlock>
           <memRegisters> M:Map ((varInstance(Bn, In) |-> Val:K) => .Map) </memRegisters>
+          <memChannelId> MenId:Int </memChannelId>
+          <channelId> MenId:Int </channelId>
           <memOpList> L:List (.List => ListItem(singleMem(TID:Int,
                      Bn:Int, In:Int, heap, Op:K))) </memOpList>
          requires isAWrite(Op) andBool
@@ -1868,6 +1874,8 @@ module LLVM-MEMORY
                    => memList(.K, Ave, Avb:List, Avb':List, .List, CML ML) </toCommit>
           <currBlock> basicBlockNum(OldCount:Int, Name:K) </currBlock>
           <memRegisters> M:Map ((varInstance(Bn, In) |-> Val:K) => .Map) </memRegisters>
+          <memChannelId> MenId:Int </memChannelId>
+          <channelId> MenId:Int </channelId>
           <memOpList> L:List (.List => ListItem(singleMem(TID:Int,
                      Bn:Int, In:Int, heap, Op:K))) </memOpList>
          requires isAWrite(Op) andBool
