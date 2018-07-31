@@ -40,3 +40,17 @@
 
 21, LLVM IR does not check input conditions of library functions such as printf.
 
+22, /*
+   <result> = trunc <ty> <value> to <ty2>             ; yields ty2
+    LLVM documentation mistake. trunc is not just working on values.
+*/
+/*
+    rule typeCheckConstExpr(T:FPType, constBinAST(Op:FloatOps Fl:FastMathFlags,
+                                T1:K, V1:K, T2:K, V2:K))
+          => typeCheckConstExprs(T,
+               (val(typeOperand(T1,V1)),val(typeOperand(T2,V2)),.ElemList))
+    rule typeCheckConstExpr(vectorTypeValue(T:FPType, I:Int),
+              constBinAST(Op:FloatOps Fl:FastMathFlags, T1:K, V1:K, T2:K, V2:K))
+          => typeCheckConstExprs(vectorTypeValue(T:FPType, I:Int),
+               (val(typeOperand(T1,V1)),val(typeOperand(T2,V2)),.ElemList))
+*/

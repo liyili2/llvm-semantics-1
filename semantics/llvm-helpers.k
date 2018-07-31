@@ -18,7 +18,6 @@ module LLVM-HELPERS
                    | undefVectorAux(K, K, K)  [function]
                    | undefArrayAux(K, K, K)   [function]
                    | dealWithUndefAux(TypeList) [function]
-    
     rule dealWithUndef(vectorTypeValue(T:K, N:Int))
             => vectorValue(undefVectorAux(T:K, N:Int, .ElemList))
     rule dealWithUndef(A:K) => undef
@@ -134,7 +133,6 @@ module LLVM-HELPERS
     rule getConstIntShuffle(undef, N:Int) => undef
     rule getConstIntShuffle(A:K, N:Int) => getConstIntValue(A, N) [owise]
 
-
     //for type check swtich
     rule typeCase(integerType(N:Int), A:K, L:K)
             => typedCase(integerType(N:Int), getConstIntValue(A, N), L)
@@ -168,7 +166,6 @@ module LLVM-HELPERS
          requires I >Int 0
     rule getGepTypeInStruct(T:K, I:Int) => badType [owise]
 
-    //use in the gep calcuation 
     syntax Int ::= calGepInStruct(Int, TypeList, Int) [function]
     rule calGepInStruct(New:Int, T:KResult, T2:TypeList, 0) => New
     rule calGepInStruct(New:Int, T:KResult, T2:TypeList, N:Int)
@@ -188,7 +185,6 @@ module LLVM-HELPERS
     rule calGepInPackedStruct(New:Int, T:K, N:Int) => badValue [owise]
 
     syntax KItem ::= searchElemInMap(Map,K,K) [function]
-
     rule searchElemInMap(.Map,.K, _:K) => none
     rule searchElemInMap(M:Map, .K, Key':K)
          => searchElemInMap(M, choice(M), Key')
@@ -199,7 +195,8 @@ module LLVM-HELPERS
          => searchElemInMap(removeAll(M,SetItem(Key)),.K,Key')
          when Key =/=K Key' andBool Key =/=K .K
 
-    syntax Bool ::= typeMatchInDefs(K,K,K,Set) //type, var name, varop, Set of varops
+    syntax Bool ::= typeMatchInDefs(K,K,K,Set) [function]
+         //type, var name, varop, Set of varops
     rule typeMatchInDefs(T:K, V:K, varOp(B:K, N:K, T, V), S:Set) => true
     rule typeMatchInDefs(T:K, V:K, varOp(B:K, N:K, T', V'), S:Set)
          => typeMatchInDefs(T:K, V:K, .K, S:Set)
@@ -951,8 +948,8 @@ module LLVM-HELPERS
                   pairResult(Count:Int, Op:K), S:List, Pre:K, Re:K, Loc:Loc)
            => getMemOps(Bn, L ListItem(memProto(Count, Op,.Map, false)),
                    .K, S, Pre, Re, Loc:Loc) [owise]
-    //end of getMemOps
 
+    //end of getMemOps
     syntax List ::= formMemList(Int, List, Loc) [function]
                   | formMemListAux(K) [function]
 
@@ -987,6 +984,7 @@ module LLVM-HELPERS
     //dealing with branching jumping and the re-arrange of memlist in toCommit cell
     syntax KItem ::= divideParList(Int, List) [function]
                    | divideParListAux(Int, List, K) [function]
+
     rule divideParList(A:Int, L:List)
                 => divideParListAux(A, L, pairList(.List, .List))
     rule divideParListAux(A:Int, .List, B:K) => B
@@ -1024,16 +1022,6 @@ module LLVM-HELPERS
              andBool lengthString(S:String) >Int 1
              andBool ordChar(substrString(S, 1, 2)) ==Int 92
 
-    rule
-        StringToList(S:String)
-            => valValue(String2Int(substrString(S, 1, 2))
-                        *Int 16 +Int String2Int(substrString(S, 2, 3))),
-                StringToList(substrString(S:String, 3, lengthString(S:String)))
-        requires S =/=String "" andBool ordChar(substrString(S, 0, 1)) ==Int 92
-             andBool lengthString(S:String) >Int 2
-             andBool isHexDigit(substrString(S, 1, 2))
-             andBool isHexDigit(substrString(S, 2, 3))
-
     syntax Set ::= makeLabelToVars(Set, Set) [function]
     rule makeLabelToVars(.Set, S:Set) => S
     rule makeLabelToVars(SetItem(A:K) S1:Set, S2:Set)
@@ -1055,9 +1043,6 @@ module LLVM-HELPERS
             InUse:Set, OutDef:Set, OutUse:Set, TheUse:Set)) L:List)
           => ListItem(instMap(Is)) getAllInsts(L)
 
-    // TODO many possible errors will slip by with this, but lots of stuff will work
-    rule 'nullOfConstValueRef(.KList) => zeroinitializer [anywhere]
-
     syntax Int ::= base(Loc) [function]
     rule base(loc(Base:Int, _, _,_,_, _)) => Base:Int
     //rule base(stackLoc(Base:Int, _, _, _)) => Base:Int
@@ -1071,13 +1056,6 @@ module LLVM-HELPERS
     //rule isInRangeLoc(inRangeLoc(A:Int, _, _)) => inrange
     //rule isInRangeLoc(badRangeLoc(A:Int, _, _)) => badRange
     rule getInRange(A:K) => none [owise]
-
-/*
-    syntax KItem ::= getLocSize(Loc)  [function]
-    rule getLocSize(loc(_, _, _, A:Int, _)) => A
-    rule getLocSize(stackLoc(_, _, _, A:Int, _)) => A
-    rule getLocSize(A:K) => badValue [owise]
-*/
 
     syntax KItem ::= getStackHeapFlag(Loc)  [function]
     rule getStackHeapFlag(loc(Base:Int, _, _,RT:K,_, _)) => RT
@@ -1100,14 +1078,7 @@ module LLVM-HELPERS
     rule hasAGepBag(gepTypeBag(T:K)) => true
     rule hasAGepBag(A:K) => false [owise]
 
-/*
-    syntax Int ::= offset(Loc)
-    rule offset(loc(_, Offset:Int)) => Offset:Int
-    rule offset(stackLoc(_, Offset:Int)) => Offset
-*/
     syntax Loc ::= Loc "+" Int [function]
-    // TODO not checking for null
-    
     rule loc(Base:Int, T:K, R:K,RT:K, BA:K, In:K) + Off:Int
             => loc(Base:Int +Int Off, T, R:K,RT, BA, In:K)
    /* rule stackLoc(Base:Int, T:K,R:K, In:K) + Off:Int
@@ -1132,7 +1103,6 @@ module LLVM-HELPERS
          requires A ==K poisonVal
     rule isAllPoison(ListItem(A:K) L:List) => false
          requires A =/=K poisonVal
-
 
     syntax List ::= getRidOfReadPiece(List) [function]
     rule getRidOfReadPiece(.List) => .List
@@ -1320,6 +1290,7 @@ module LLVM-HELPERS
              => getBadValueInBits(L, A)
          requires A =/=K poisonVal andBool B =/=K poisonVal
 
+    //joining float bytes
     rule joinFloatByteAuxA(ListItem(A:Int) L:List, T:K)
           => joinFloatByteAuxB(A, countByte(L, .List, exponentOf(T)), T)
     rule joinFloatByteAuxA(ListItem(A:K) L:List, T:K) => A
@@ -1467,6 +1438,7 @@ module LLVM-HELPERS
          => loc(R *Int (2 ^Int (I *Int numBitsPerByte)), T:K,
               Ra:K, Ran:K, Ba:K, none)
 
+    //joining pointer bytes together
     rule joinPointerByte(L:List, I:Int, Size:Int) => undef
          requires size(L) =/=Int Size orBool Size ==Int 0
     rule joinPointerByte(L:List, I:Int, Size:Int)
@@ -1846,7 +1818,6 @@ module LLVM-HELPERS
                              orBool Ran =/=K Ran' orBool Bn =/=K Bn')
     //end of joining int bytes
 
-
     syntax KItem ::= joinIntBits(List, Int, Int, Int) [function]
                   //term, result, real bits, bound byte bits
     rule joinIntBits(L:List, R:Int, B:Int, B:Int) => R
@@ -1858,11 +1829,9 @@ module LLVM-HELPERS
             => joinIntBits(L, ((2 ^Int N) *Int X) +Int R, N +Int 1, B)
          requires N <Int B
 
-
     //functions to split a whole data into list of bytes
     syntax KItem ::= splitBytes(K, K) [function]// value, type
     syntax List ::= splitBytesAux(K, K) [function]
-
     rule splitBytes(V:KResult, T:K)
                 => region(splitBytesAux(V, T), sizeof(T))
 
@@ -2062,83 +2031,15 @@ module LLVM-HELPERS
               splitStructByte(constStructVal(Es), Ts)
          requires notBool structAlign dividesInt sizeof(T)
 
-    syntax Int ::= wvalist(List, K)
-    //rule isNat(wvalist(_, _)) => true
-
-    syntax KItem ::= "byteType" [function]
-    rule byteType => integerType(numBitsPerByte)
-
     syntax KItem ::= i(K) [function]//[latex "i({#1})"]
     rule i(N:Int) => integerType(N)
 
-    syntax Int ::= sizeofInBits(K) [function]
-
-    //syntax Loc ::= intToPtrOfLoc(K, K)
-    //syntax Int ::= ptrToIntOfLoc(K, K)
-    syntax KItem ::= read(K, K) [strict(1)]
-    syntax KItem ::= write(K, K, K) [strict] // type, value, location
-
-    syntax Kitem ::= innerType(K) [function]
+    syntax KItem ::= innerType(K) [function]
     rule innerType('pointerType(K:K,, _)) => K:K
     rule innerType(arrayType(K:K, _)) => K:K
     rule innerType(arrayTypeValue(K:K, _)) => K:K
     rule innerType(vectorType(K:K, _)) => K:K
     rule innerType(vectorTypeValue(K:K, _)) => K:K
-
-
-    // these give the two's complement signed max and min of a type
-    syntax Int ::= smax(K) [function]
-    syntax Int ::= smin(K) [function]
-    rule smax(Type:KResult) => (2 ^Int absInt(sizeofInBits(Type) -Int 1)) -Int 1
-    rule smin(Type:KResult) => 0 -Int (2 ^Int absInt(sizeofInBits(Type) -Int 1))
-
-    syntax Int ::= ufmax(K) [function]
-    syntax Int ::= ufmin(K) [function]
-    rule ufmax(Type:KResult) => (2 ^Int absInt(sizeofInBits(Type))) -Int 1
-    rule ufmin(Type:KResult) => 0
-
-    // should be a K, but builtins can't use K :(
-    // declare signed : K K -> Nat // type, value
-    syntax Int ::= signed(K, K) [function]
-    //rule isNat(signed(_, _)) => true
-
-    // case when in bounds
-    rule signed(Type:KResult, I:Int) => I
-        when smin(Type) <=Int I andBool smax(Type) >=Int I
-
-    // this reduces it to be close
-    rule signed(Type:KResult, I:Int)
-            => signed(Type:KResult, I %Int (ufmax(Type) +Int 1))
-        when I >Int ufmax(Type) // note umax here
-    // this picks up any extra distance
-    rule signed(Type:KResult, I:Int)
-            => I -Int (ufmax(Type) +Int 1)
-        when I >Int smax(Type) andBool I <=Int ufmax(Type)
-
-    // same as above
-    rule signed(Type:KResult, I:Int)
-            => signed(Type:KResult, I %Int (ufmax(Type) +Int 1))
-        when I <Int 0 -Int ufmax(Type)
-    rule signed(Type:KResult, I:Int)
-            => I +Int (ufmax(Type) +Int 1)
-        when I <Int smin(Type) andBool I >=Int 0 -Int ufmax(Type)
-
-
-    // computes the positive remainder, whereas % can returns a negative number
-    // TODO maybe should go in pl builtins
-    syntax Int ::= K "remInt" K [function]
-    rule (I:Int remInt N:Int) => ((I %Int N) +Int N) %Int N
-
-    // declare unsigned : K K -> Nat // type, value
-    syntax Int ::= unsigned(K, K) [function]
-    //rule isNat(unsigned(_, _)) => true
-
-    rule unsigned(Type:KResult, N:Int) => N
-        when ufmin(Type) <=Int N andBool ufmax(Type) >=Int N
-    rule unsigned(Type:KResult, I:Int) => I remInt (ufmax(Type) +Int 1)
-        when I <Int ufmin(Type)
-    rule unsigned(Type:KResult, N:Int) => N %Int (ufmax(Type) +Int 1)
-        when N >Int ufmax(Type)
 
     syntax Bool ::= isIntegerType(K) [function]
     rule isIntegerType(integerType(N:Int)) => true
@@ -2183,7 +2084,7 @@ module LLVM-HELPERS
     rule isArrayType(arrayTypeValue(_, _)) => true
     rule isArrayType(_) => false [owise]
 
-    syntax Bool ::= isStructType(K)
+    syntax Bool ::= isStructType(K) [function]
     rule isStructType('structType(_)) => true
     rule isStructType(structTypeValue(_)) => true
     rule isStructType('packedStructType(_)) => true
@@ -2196,6 +2097,7 @@ module LLVM-HELPERS
     rule isPackedStructType(_) => false [owise]
 */
     // fixme size should depend on architecture
+    syntax Int ::= sizeofInBits(K) [function]
     rule sizeofInBits(void) => 0
     rule sizeofInBits('pointerType(_,, _)) => numBytesPerPointer *Int numBitsPerByte
     rule sizeofInBits(pointerTypeValue(_, _)) => numBytesPerPointer *Int numBitsPerByte
@@ -2275,16 +2177,6 @@ module LLVM-HELPERS
           => getTypeInStruct(structTypeValue(Ts), N -Int 1)
          requires N >Int 0
 
-    syntax KItem ::= zeroOfType(K)
-    rule zeroOfType(Type:KResult) => 0
-        when isIntegerType(Type)
-
-
-    syntax List ::= K "copiesOf" List [function]
-    rule N:Int copiesOf L:List => L (N:Int -Int 1 copiesOf L)
-        when N:Int >Int 0
-    rule 0 copiesOf _ => .List
-
     // define N:Int +Int (Offset:Int +Int sym(Base:Int))
         // => (N +Int Offset) +Int sym(Base)
 
@@ -2292,8 +2184,7 @@ module LLVM-HELPERS
         // => (absInt(I +Int Offset)) +Int sym(Base)
         // when I <Int 0 andBool I +Int Offset >=Int 0
 
-    syntax SymbolicValueRef ::= makeVarFromLabel(LabelStringConstant)
-                                [function]
+    syntax SymbolicValueRef ::= makeVarFromLabel(LabelStringConstant) [function]
     rule makeVarFromLabel(L:LabelStringConstant)
               => name(localVar, substrString(#tokenToString(L), 0
                     , lengthString(#tokenToString(L)) -Int 1))

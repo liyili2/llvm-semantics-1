@@ -276,5 +276,10 @@ module LLVM-GLOBALS
              => M[X <- loc(FunCount,pointerTypeValue(T, defaultAddrSpace),
                     value(FunCount, FunCount), heap, none, none)] </globalRegisters>
 
+    //initialize channels
+    rule initialMemChannels(0) => .K
+    rule <k> initialMemChannels(N:Int) => initialMemChannels(N -Int 1) ...</k>
+         (.Bag => <memory>... <channelId> N -Int 1 </channelId>
+                        <timeStamps> initTimeStamp(0,maxMemChannel) </timeStamps> ...</memory>)
 
 endmodule

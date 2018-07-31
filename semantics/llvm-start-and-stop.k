@@ -68,16 +68,4 @@ module LLVM-START-AND-STOP
             <k> I:KResult => call(void, callee(name(globalVar, "exit"), arguments(val(I)))) </k>
         ...</T>
 
-    // TODO it's not clear whether this belongs here or in SYSCALLS-IMPL
-    //output buffer need to in a final state.
-    rule
-        <T>...
-            <k> 'sys-exit-group(I:Int,, _) ...</k>
-            <output> .List </output>
-        ...</T>
-        =>
-        <result>...
-            <returnValue> I remInt 256 </returnValue>
-        ...</result>
-
 endmodule

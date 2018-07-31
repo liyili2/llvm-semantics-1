@@ -2,13 +2,11 @@
 requires "llvm-syntax.k"
 requires "llvm-abstractsyntax.k"
 requires "llvm-settings.k"
-requires "llvm-helpers.k"
 
 module LLVM-CONFIGURATION
     imports LLVM-SYNTAX
     imports LLVM-ABSTRACTSYNTAX
     imports LLVM-SETTINGS
-    imports LLVM-HELPERS
 
     configuration
         <T>//top level

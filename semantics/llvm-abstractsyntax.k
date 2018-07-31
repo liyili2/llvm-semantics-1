@@ -568,6 +568,9 @@ module LLVM-ABSTRACTSYNTAX
     syntax KResult ::= Zeroinitializer
     syntax KResult ::= blockValue(K)
 
+    // TODO many possible errors will slip by with this, but lots of stuff will work
+    rule 'nullOfConstValueRef(.KList) => zeroinitializer [anywhere]
+
     syntax KResult ::= intByte(List)
     syntax KItem ::= countByteResult(List, List)
     syntax KItem ::= splitListResult(List, List)
@@ -1075,5 +1078,122 @@ module LLVM-ABSTRACTSYNTAX
                              //type, val, type, val
                    | constInElemAST(K, K, K, K, K, K) [strict]
                              //type, val, type, val, type, val
+
+    //type check functions
+    syntax KItem ::= typeCheckOp(K, K, K) //block name, var name, op
+                   | typeCheckVaArg(K, K, K, K, K, InstructionMetadatas) [strict(3,5)]
+                       //block, var, ty1, v, ty2, instmeta
+                   | typeCheckIntOp(K, K, K, K, K, K, Set, InstructionMetadatas)    
+                                 [strict(4)]//block name, var name, op, ty, v1, v2, attributes, instmeta
+                   | typeCheckFloatOp(K, K, K, K, K, K, Set, InstructionMetadatas)    
+                                 [strict(4)]//block name, var name, op, ty, v1, v2, attributes, instmeta
+                   | typeCheckExtractValue(K, K, K, K, List, InstructionMetadatas)
+                                [strict(3)]//block, variable, t1, v1, idendis, ins
+                   | typeCheckExtractValueAux(K, K, K, K, K, List, List, InstructionMetadatas)
+                           //block, variable, t1, temp ty1, v1, idendis, temp index, ins
+                   | typeCheckInsertValueAux(K, K, K, K, K, K, K, List, List, InstructionMetadatas)
+                              //block, variable, t1,temp ty1, v1,t2,v2, idendis, temp index, ins
+                   | typeCheckInsertValue(K, K, K, K, K, K, List, InstructionMetadatas)
+                                [strict(3,5)]//block, variable, t1, v1, idendis, ins
+                   | typeCheckElemExtract(K, K, K, K, K, K, InstructionMetadatas)
+                                [strict(3, 5)]//block, variable, t1, v1, t2, v2, ins
+                   | typeCheckInsertElem(K, K, K, K, K, K, K, K, InstructionMetadatas)
+                                [strict(3, 5, 7)]//block, variable, t1, v1, t2, v2, t3,v3, ins
+                   | checkShuffleIndex(Int, K, K, K) [strict(2)]
+                               //max index, cur type, cur int, elems
+                   | typeCheckShuffle(K, K, K, K, K, K, K, K, InstructionMetadatas)
+                                [strict(3, 5, 7)]//block, variable, t1, v1, t2, v2,t3,v3, ins
+                   | typeCheckCastOp(K, K, K, K, K, K, InstructionMetadatas)
+                                [strict(4, 6)]//block, variable, operator, T1, V, T2
+                   | typeCheckArgWithMMX(K, K, K) // block, t, arg
+                   | typeCheckMMXExpr(K, K) // t, arg
+                   | typeCheckSingleArg(K, K, K) //block t, arg
+                   | preTypeCheckPointerExpr(K, K)
+                   | typeCheckPointerExpr(K, K)
+                   | typeCheckConstExpr(K, K)   [strict(1)]//type var
+                   | typeMatch(K, K)            [strict] //type, type
+                   | typeCheckExpr(K, K)//t, v
+                   | preTypeCheckFloatExpr(K, K)//type, var
+                   | typeCheckFloatExpr(K, K) //type, var
+                   | preTypeCheckIntExpr(K, K)//type, var
+                   | typeCheckIntExpr(K, K) //type, var
+                   | typeCheckArrayExpr(K, Int, K) //type, n, var
+                   | typeCheckArrayExpr(K, Int, K, K, ElemList, ElemList) [strict(3)]
+                                                //t, integer, type, value, terms
+                   | preTypeCheckStructExpr(K, K) //type, var
+                   | typeCheckStructExpr(K, K, K, ElemList) //temp t, type, var
+                   | typeCheckStructExprAux(K, K, K) [strict(2)]//type, var
+                   | preTypeCheckArrayExpr(K, Int, K) //type, n, var
+                   | typeCheckArrayAux(K, K) //t, terms
+                   | typeCheckIntArg(K, K, K)//block, t, var
+                   | preTypeCheckVectorArg(K, Int, K) //t, integer, terms
+                   | typeCheckVectorArg(K, Int, K) //t, integer, terms
+                   | typeCheckVectorArg(K, Int, K, K, ElemList, ElemList)  [strict(3)]
+                                                //t, integer, type, value, terms
+                   | typeCheckVectorAux(K, K) //t, terms
+                   | typeCheckInGepList(K, K, ElemList, ElemList)
+                            //block, assign, addspace, current type, index list, store-list
+                   | typeCheckInGepListAux(K, K, K, ElemList, ElemList)
+                            //block, assign, addspace, current type, value, index list
+                   | typeCheckInGepListStruct(K, K, K, ElemList, ElemList)
+                            //block, assign, addspace, current type, value, index list
+                   | typeCheckIntArg(K, K, K, K, K, K)    [strict(5)]
+                   | typeCheckGepOp(K, K, K, K, K, ElemList, Set, InstructionMetadatas)
+                             [strict(3,4,6)]//block, var, t, t*, v, (t,v)lists, mods, instmeta
+                   | typeCheckAllocaOp(K, K, K, Int, K, K, K, Set, InstructionMetadatas)
+                             [strict(3,5)]//block,var, t, addrspace, int-t, v, align
+                   | typeCheckStore(K, K, K, K, K, K, Set, InstructionMetadatas)
+                             [strict(2,4)]//block, t, v, pt, v, align, mods, instmeta
+                   | typeCheckLoad(K, K, K, K, K, K, K, Set, InstructionMetadatas)
+                             [strict(3,4)]//block, var, t, pt, v, align, atomic, mods, instmeta
+                   //| typeCheckIntArgList(K, ElemList)        [strict(2)]
+                   | TypeMatchFunctions(K, ElemList, ElemList)  [strict(2,3)]
+                   | typeCheckBr(K, K, K, K, K, InstructionMetadatas)    [strict(2)]//block, t, ..., instmeta
+                   | typeCheckICmp(K, K, K, K, K, K, InstructionMetadatas)
+                              [strict(4)]//block, var, op, type, v1, v2, instmeta
+                   | typeCheckFCmp(K, K, K, K, K, K, Set, InstructionMetadatas)
+                              [strict(4)]//block, var, op, type, v1, v2, mods, instmeta
+                   | typeCheckPhi(K, K, K, ElemList, ElemList, Set, ElemList, InstructionMetadatas)
+                              [strict(3)]//block, var, type, value-list, label-list, phi-list, instmeta
+                   | typeCheckRet(K, K, K, InstructionMetadatas)           [strict(2)]//block, t, v, Meta
+                   | typeCheckCall(K, K, K, K, K, ElemList, ElemList, ParamList, Set, InstructionMetadatas)
+                               [strict(4, 6, 7)]//block, var, op, t, name, argt, argv, args, mods, instmeta
+                   | typeCheckInvoke(K, K, K, K, ElemList, ElemList,
+                                         ParamList, K, K, Set, InstructionMetadatas)
+                               [strict(3, 5, 6)]
+               //block, var, op, t, name, argt, argv, args, l1, l2, mods, instmeta
+
+                   | typeCheckSwitch(K, K, K, K, ElemList, List, Set, InstructionMetadatas)
+                                          [strict(2, 5)]
+                                   //block, type, v, default, argv, argl, stroed argl, val_set, instmeta
+                   | typeCheckIndirectBr(K, K, K, ElemList, List, InstructionMetadatas)
+                                          [strict(2)]//block, type, argv, argl, instmeta
+                   | typeCheckSelect(K, K, K, K, K, K, K, K, InstructionMetadatas)
+                              [strict(3,5,7)]
+                        //block,name type, value, firstT, firstV, secondT, secondV, instmeta
+                   | typeCheckResume(K, K, K, InstructionMetadatas)    [strict(2)]
+                             //block, type, value, instmeta
+                   | typeCheckLandingpad(K, K, K, ElemList, List, InstructionMetadatas)    [strict(3,4)]
+                             //block, name, type, clauses, stored clauses, instmeta
+                    | typeCheckFence(K, K, Set, InstructionMetadatas)
+                        //block,order, mods, instmeta
+                  | typeCheckCmpxchg(K, K, K, K, K, K, K, K, K, K, Set, InstructionMetadatas)
+                                 [strict(3,5,7)]
+                     //block, name, t1, v1, t2, v2, t3, v3, order1,order2, mods, instmeta
+                  | typeCheckAtomicrmw(K, K, K, K, K, K, K, K, Set, InstructionMetadatas)
+                                 [strict(4,6)]
+                     //block, name, bin, t1, v1, t2, v2, order1, mods, instmeta
+
+    syntax ElemList ::= typeCheckIntArgs(K, K, ElemList, ElemList)
+                      | typeCheckVectorArgs(K, K, ElemList, ElemList)
+                         //block, t, integer, terms, store
+                      | typeCheckFloatArgs(K, K, ElemList, ElemList)
+                      | typeCheckPointerArgs(K, K, ElemList, ElemList)
+                      | typeCheckConstExprs(K, ElemList, ElemList)     [strict(2)]//type, oprends
+                      | typeCheckArgList(K, ElemList, ElemList)        [strict(2)]
+
+    syntax KItem ::= checkSingleAssignment(K)
+                   | checkSingleAssignmentInBlock(SymbolicValueRef, K, Bool)
+                              //name, tocheck, stores, is-phi-allow
 
 endmodule

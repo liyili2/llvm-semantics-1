@@ -22,7 +22,7 @@ module LLVM-DECLARATIONS
 
     // TODO: semantic design pattern: assignment rule
     rule
-        <k> alias(Mod:K, X:SymbolicValueRef, K:KResult) => . ...</k>
+        <k> alias(Mod:K, X:SymbolicValueRef, K:KResult) => .K ...</k>
         <globalRegisters> Map:Map => Map[X <- K] </globalRegisters>
 
     // TODO KListToK module sections
@@ -155,15 +155,7 @@ module LLVM-DECLARATIONS
         <currFunction> FunName:SymbolicValueRef </currFunction>
         <functionName> FunName </functionName>
         <initialBasicBlock> _ => addNameToString(L) </initialBasicBlock>
-/*
-    rule
-        <k> basicBlock(Name:SymbolicValueRef, K:K) => .K ...</k>
-        <currModule> ModName:SymbolicValueRef </currModule>
-        <funModuleName> ModName </funModuleName>
-        <currFunction> FunName:SymbolicValueRef </currFunction>
-        <functionName> FunName:SymbolicValueRef </functionName>
-        <basicBlocks>... .Map => Name:SymbolicValueRef |-> (setBlock(Name) ~> K:K) ...</basicBlocks>
-*/
+
     rule
         <k> startInitBlock(Label:K) =>
               blockExecution(basicBlockNum(Count, Label),
