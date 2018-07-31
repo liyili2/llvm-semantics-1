@@ -77,9 +77,8 @@ module LLVM-DECLARATIONS
         <nextBase> FunCount:Int => FunCount +Int
                          sizeOfFunArg(Arguments) +Int numBytesFunHeader </nextBase>
         <instructionCounter> InstCount:Int => 1 </instructionCounter>
-        <localFunVarCounter> LocalI:Int => 0 </localFunVarCounter>
-            <tempLabelUses> TL:Set => .Set </tempLabelUses>
-            <tempExceptionUses> ETL:Set => .Set </tempExceptionUses>
+        <tempLabelUses> TL:Set => .Set </tempLabelUses>
+        <tempExceptionUses> ETL:Set => .Set </tempExceptionUses>
         (.Bag =>
             <function>...
                 <funModuleName> ModName </funModuleName>

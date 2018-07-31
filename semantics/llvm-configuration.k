@@ -21,8 +21,6 @@ module LLVM-CONFIGURATION
             //a cell to hold all to commit memory ops, simulating computer north bridge
             <matchPhisWithInEdges> .List </matchPhisWithInEdges>
             //a helper cell to store all phi edges that have not been type checked
-            <checkUseCount> 0 </checkUseCount>
-            //a counter cell to generate free vars for use checks, should be deleted
             <instructionCounter> 0 </instructionCounter>
             //a counter cell to genearte free vars for instruction location num
             <tempGlobalVars> .List </tempGlobalVars> //use for store unnamed addr global vars
