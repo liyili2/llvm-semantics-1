@@ -35,7 +35,9 @@ module LLVM-ABSTRACTSYNTAX
     syntax KResult ::= "badValue"
     syntax KResult ::= "skipValue"
     syntax KItem ::= "none"
-    syntax KResult ::= "vaListType"
+    syntax ArgListResult ::= "vaListType"
+    syntax ArgList ::= ArgListResult
+    syntax KResult ::= ArgListResult
     rule 'vaArgs(.KList) => vaListType
 
     syntax KItem ::= vaListCal(K, K, K) [strict]//type, loc, value
@@ -312,17 +314,16 @@ module LLVM-ABSTRACTSYNTAX
            => val(String2Int(#tokenToString(N))),formElemList(Cil)
     rule formElemList(X:Ordering) => val(X),.ElemList
     rule formElemList('argListUnit(.KList)) => .ElemList
-    rule formElemList('vaArgs(.KList)) => val('vaArgs(.KList)),.ElemList
-    rule formElemList(Ty:Type Pa:ParamAttrs)
-             => val(arg(formSet(Pa),addNameToString(Ty),.K))
-    rule formElemList('argTypeThree(Ty:Type,, Pa:ParamAttrs,, Na:LocalVar))
-             => val(arg(formSet(Pa),addNameToString(Ty)
-                                                        ,addNameToString(Na)))
-    rule formElemList(Ty:Type Pa:ParamAttrs, Al:ArgList)
+    rule formElemList(vaListType) => val(vaListType),.ElemList
+    rule formElemList('argTypeTwo(Ty:K,, Pa:K))
+             => val(arg(formSet(Pa),addNameToString(Ty),.K)),.ElemList
+    rule formElemList('argTypeThree(Ty:K,, Pa:K,, Na:K))
+             => val(arg(formSet(Pa),addNameToString(Ty), addNameToString(Na))),.ElemList
+    rule formElemList('argTypeCon('argTypeTwo(Ty:K,, Pa:K),, Al:K))
              => val(arg(formSet(Pa),addNameToString(Ty),.K)),formElemList(Al)
-    rule formElemList('argTypeThree(Ty:Type,, Pa:ParamAttrs,, Na:LocalVar), Al:ArgList)
+    rule formElemList('argTypeCon('argTypeThree(Ty:K,, Pa:K,, Na:K),, Al:K))
              => val(arg(formSet(Pa),addNameToString(Ty)
-                                           ,addNameToString(Na))),formElemList(Al)
+                            ,addNameToString(Na))),formElemList(Al)
     rule formElemList(.ReturnedVal) => .ElemList
     rule formElemList(T:Type V:ValueRef , R:ReturnedVal)
                             => val(operand(T, addNameToString(V))),formElemList(R)
@@ -477,7 +478,7 @@ module LLVM-ABSTRACTSYNTAX
     rule arrayType(K1:KResult, K2:KResult) => arrayTypeValue(K1, K2) [structural]
     rule 'structType(K1:KResult) => structTypeValue(K1) [structural]
     rule 'packedStructType(K1:KResult) => packedStructTypeValue(K1) [structural]
-    rule 'functionType(K1:K,, K2:ArgList) => functionTypeEval(K1, formElemList(K2))
+    rule 'functionType(K1:K,, K2:K) => functionTypeEval(K1, formElemList(K2))
                                                         [structural]
     rule functionTypeEval(K1:KResult, K2:KResult)
                      => functionTypeValue(K1, getAllTypes(K2)) [structural]
@@ -791,6 +792,8 @@ module LLVM-ABSTRACTSYNTAX
               //initial?, set of sub-base, sub-chunck
               //if a struct have two field, the base of the second field
               //== base of first + size of first + align of second.
+    syntax KItem ::= stackObject(K, Int, Int, Int, K)
+            //chunckrange, size, align, addspace, range 
     //instructions
     syntax KItem ::= "guessExternal"
     syntax KItem ::= preStaticStore(K, K, K, K, Int) [strict(2)]

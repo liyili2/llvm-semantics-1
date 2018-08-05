@@ -60,6 +60,7 @@ module LLVM-CONFIGURATION
                     <blockCount> 0 </blockCount> //model cpu: tomasulo
                 </tomasulo>//simulating tomosulo execution model.
                 <stack>
+                   <stackInfo> .List </stackInfo>
                    <stackOpList> .List </stackOpList>
                    <nextStack> startMemoryLoc </nextStack>
                     <stackList> .List </stackList>
@@ -92,17 +93,6 @@ module LLVM-CONFIGURATION
                 </control> //control panel for function and basic blocks
               </thread>
             </threads>
-            <stackObjects>
-                   <stackObject multiplicity="*" color="LightSkyBlue">
-                     <stackThreadId> 0 </stackThreadId> 
-                     <stackChunckRange> .K </stackChunckRange>
-                     //<stackChunck> .List </stackChunck>
-                     <stackSize> -1 </stackSize>
-                     <stackAlign> 0 </stackAlign>
-                     <stackAddrSpace> 0 </stackAddrSpace>
-                     <stackRange> .K </stackRange>
-                   </stackObject>
-            </stackObjects>
             <memorys>
               <memory multiplicity="*" color="teal" type="Map"> //main memory, heap
                 <channelId> 0 </channelId>

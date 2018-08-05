@@ -44,7 +44,8 @@ module LLVM-BRANCHING
             => blockHold(basicBlockNum(Count,name(Label:K, S:String))) </currBlock>
         <specTree> Cho:Map => cutOffWrongBranches(OldCount, Count,
                formMemListWithMem(Count, Name, OldCount,
-           selectPhis(OldCount,Name,formInstList(1, .K, Body)), VaLoc, getVarsFromVarOp(.K,
+           selectPhis(OldCount,Name,formInstList(1, .K, Body)),
+                  getCoreVaLog(VaLoc), getVarsFromVarOp(.K,
             OutDef -Set InDef), addChildToKey(Cho, OldCount, Count))) </specTree>
         <specRegisters> SRM:Map => .Map </specRegisters>
         <registers> RM:Map => updateMapByMap(RM, .K, .K,
@@ -54,7 +55,7 @@ module LLVM-BRANCHING
         <funModuleName> ModName </funModuleName>
         <currFunction> FunName </currFunction>
         <functionName> FunName </functionName>
-         <vaList> value(_:K, VaLoc:Loc) </vaList>
+         <vaList> VaLoc:K </vaList>
         <basicBlocks>... name(Label:K, S:String)
                  |-> blockContent(Body:Map, _:Bool, _:Set,
                   _:Set, InDef:Set, _:Set, OutDef:Set, _:Set, _:Set) ...</basicBlocks>

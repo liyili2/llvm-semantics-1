@@ -890,17 +890,10 @@ module LLVM-MEMORY
                      Type,value(curBase(Base, Al),
                     nextBase(Base, sizeof(Type) *Int N, Al))) ...</k>
          <threadId> Tid:Int </threadId>
-        (.Bag =>
-            <stackObject>...
-            <stackThreadId> Tid </stackThreadId>
-             <stackChunckRange> value(curBase(Base, Al),
-                    nextBase(Base, sizeof(Type) *Int N, Al)) </stackChunckRange>
-             <stackSize> N </stackSize>
-             <stackAddrSpace> Ad </stackAddrSpace>
-             <stackRange> getRangeFromFlagInStack(Con) </stackRange> 
-             <stackAlign> newPacking(Base, Al) </stackAlign>
-                       ...</stackObject> )
         <currentModifiers> Mods:Set </currentModifiers>
+        <stackInfo> SIL:List (.List => ListItem(stackObject(value(curBase(Base, Al),
+                    nextBase(Base, sizeof(Type) *Int N, Al)),
+                  N, newPacking(Base, Al), Ad, getRangeFromFlagInStack(Con)))) </stackInfo>
         <stackList> MRL:List (.List => ListItem(value(curBase(Base, Al),
                      nextBase(Base, sizeof(Type) *Int N, Al)))) </stackList>
         <localMemory>... .Set => SetItem(curBase(Base, Al)) </localMemory>
@@ -914,17 +907,10 @@ module LLVM-MEMORY
                        value(curBase(Base, Al),
                         nextBase(Base, sizeof(Type) *Int N, Al))) ...</k>
          <threadId> Tid:Int </threadId>
-        (.Bag =>
-            <stackObject>...
-            <stackThreadId> Tid </stackThreadId>
-             <stackChunckRange> value(curBase(Base, Al),
-                    nextBase(Base, sizeof(Type) *Int N, Al)) </stackChunckRange>
-             <stackSize> N </stackSize>
-             <stackAddrSpace> Ad </stackAddrSpace>
-             <stackRange> getRangeFromFlagInStack(Con) </stackRange> 
-             <stackAlign> newPacking(Base, Al) </stackAlign>
-                ...</stackObject> )
         <currentModifiers> Mods:Set </currentModifiers>
+        <stackInfo> SIL:List (.List => ListItem(stackObject(value(curBase(Base, Al),
+                    nextBase(Base, sizeof(Type) *Int N, Al)),
+                  N, newPacking(Base, Al), Ad, getRangeFromFlagInStack(Con)))) </stackInfo>
         <stackList> MRL:List (.List => ListItem(value(curBase(Base, Al),
                      nextBase(Base, sizeof(Type) *Int N, Al)))) </stackList>
         <localMemory>... .Set => SetItem(inAlloca(curBase(Base, Al))) </localMemory>
@@ -1580,9 +1566,9 @@ module LLVM-MEMORY
         requires notBool isALoc(A)
 
     //commit cell to memory cell
-    rule memList(.K, SetItem(A:K) Ave:Set,
+    rule <toCommit> memList(.K, SetItem(A:K) Ave:Set,
                             Avb:List, Avb':List, CML:List, ML:List)
-          => memList(A, Ave, Avb:List, Avb':List, CML, ML)
+          => memList(A, Ave, Avb:List, Avb':List, CML, ML) </toCommit>
 
     rule <toCommit> memList(singleMem(TID:Int,
                      Bn:Int, In:Int, heap, Op:K), Ave:Set,
@@ -1653,7 +1639,7 @@ module LLVM-MEMORY
                   => memList(.K, Ave, Avb:List, Avb':List, .List, CML ML) </toCommit>
           <specTree> M:Map => markMemOp(Bn, In,.K, M) </specTree>
           <stackOpList> L:List (.List => ListItem(singleMem(TID:Int,
-                     Bn:Int, In:Int, heap, Op:K))) </stackOpList>
+                     Bn:Int, In:Int, stack, Op:K))) </stackOpList>
           requires notBool hasMemOpInList(TID, Bn, In, Avb Avb' CML ML)
                   andBool notBool hasMemOpInSet(TID, Bn, In, .K, Ave)
           [transition]
@@ -1663,7 +1649,7 @@ module LLVM-MEMORY
                           Ave:Set, Avb:List, Avb':List, CML:List, ML:List)
                   => memList(.K, Ave, Avb:List, Avb':List, .List, CML ML) </toCommit>
           <stackOpList> L:List (.List => ListItem(singleMem(TID:Int,
-                     Bn:Int, In:Int, heap, Op:K))) </stackOpList>
+                     Bn:Int, In:Int, stack, Op:K))) </stackOpList>
           requires (hasMemOpInList(TID, Bn, In, Avb Avb' CML ML)
                   orBool hasMemOpInSet(TID, Bn, In, .K, Ave))
           [transition]
@@ -1692,7 +1678,7 @@ module LLVM-MEMORY
                      In:Int, Ran:K, Op:K)), Avb:List, S, Check, Not) </toCommit>
          <currBlock> basicBlockNum(Cur:Int, _:K) </currBlock>
           <specTree> M:Map </specTree>
-         requires isMemAvailable(Cur, Bn, In, Ran, getOrderInMemOp(Op), M)
+         requires isMemAvailable(Cur, Bn, In, Ran, Op, M)
                   andBool Bn <=Int Cur
          [transition]
 
@@ -1703,7 +1689,7 @@ module LLVM-MEMORY
                      In:Int, Ran:K, Op:K)), Check, Not) </toCommit>
          <currBlock> basicBlockNum(Cur:Int, _:K) </currBlock>
           <specTree> M:Map </specTree>
-         requires isMemAvailable(Cur, Bn, In, Ran, getOrderInMemOp(Op), M)
+         requires isMemAvailable(Cur, Bn, In, Ran, Op, M)
                   andBool Bn >Int Cur
          [transition]
 
@@ -1715,7 +1701,7 @@ module LLVM-MEMORY
                      In:Int, Ran:K, Op:K)), Not) </toCommit>
          <currBlock> basicBlockNum(Cur:Int, _:K) </currBlock>
           <specTree> M:Map </specTree>
-         requires notBool isMemAvailable(Cur, Bn, In, Ran, getOrderInMemOp(Op), M)
+         requires notBool isMemAvailable(Cur, Bn, In, Ran, Op, M)
          [transition]
 
     //deal with speculative write/read with mem op being unordered
@@ -1791,32 +1777,24 @@ module LLVM-MEMORY
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackAddrSpace> Ad </stackAddrSpace>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-           <stackRange> constant </stackRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map => BM[Base +Int Other <- V] </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                   andBool notBool Base +Int Other in keys(BM)
+         requires notBool Base +Int Other in keys(BM)
+                  andBool isConstantStack(SIL, Base, Size)
+                  andBool matchAddSpaceStack(SIL, Base, Size, Ad)
+
 
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackAddrSpace> Ad':Int </stackAddrSpace>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-           <stackRange> constant </stackRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
          <stackMap> BM:Map => BM[Base +Int Other <- V] </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                   andBool notBool Base +Int Other in keys(BM)
-                    andBool Ad =/=Int Ad'
+         requires notBool Base +Int Other in keys(BM)
+                  andBool notBool matchAddSpaceStack(SIL, Base, Size, Ad)
+                  andBool isConstantStack(SIL, Base, Size)
 
     rule <threads> (<thread>...
          <threadId> TID </threadId>
@@ -1839,46 +1817,32 @@ module LLVM-MEMORY
           <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) L:List => .List) </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackAddrSpace> Ad </stackAddrSpace>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-           <stackRange> constant </stackRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <output>... .List =>
             ListItem("write a byte in a statck constant field that has been initialized.")
          </output>
          <stackMap> BM:Map </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                   andBool Base +Int Other in keys(BM)
+         requires Base +Int Other in keys(BM) 
+                  andBool isConstantStack(SIL, Base, Size)
 
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackAddrSpace> Ad':Int </stackAddrSpace>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-           <stackRange> stack </stackRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
          <stackMap> BM:Map => BM[Base +Int Other <- V] </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                   andBool Ad =/=K Ad'
+         requires notBool matchAddSpaceStack(SIL, Base, Size, Ad)
+                  andBool isNormalStack(SIL, Base, Size)
 
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackAddrSpace> Ad </stackAddrSpace>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-           <stackRange> stack </stackRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map => BM[Base +Int Other <- V] </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires matchAddSpaceStack(SIL, Base, Size, Ad)
+                  andBool isNormalStack(SIL, Base, Size)
 
     //read values from read back cell
     rule <readBack> readMapAux(varInstance(Bn:Int, In:Int),
@@ -1950,7 +1914,7 @@ module LLVM-MEMORY
          <toCommit> memList(Ava:K, Ava':Set, Avb:List, Avb':List, CML:List, ML:List)
                => memList(Ava, Ava', Avb:List, Avb':List,
                      CML, updateVarInList(Cur, Bn,
-               L, M, M'[X <- constStructVal(
+               ML, M, M'[X <- constStructVal(
                  valValue(joinBytes(T, LL)),valValue(N),.ElemList)], Rev)) </toCommit>
          <specTree> Rev:Map => updateVarInSpecTree(Rev, Cur, .K, .K,
               M, M'[X <- constStructVal(
@@ -1969,7 +1933,7 @@ module LLVM-MEMORY
          <toCommit> memList(Ava:K, Ava':Set, Avb:List, Avb':List, CML:List, ML:List)
                => memList(Ava, Ava', Avb:List, Avb':List,
                      CML, updateVarInList(Cur, Bn,
-               L, M, M'[X <- joinBytes(T, LL)], Rev)) </toCommit>
+               ML, M, M'[X <- joinBytes(T, LL)], Rev)) </toCommit>
          <specTree> Rev:Map => updateVarInSpecTree(Rev, Cur, .K, .K,
               M, M'[X <- joinBytes(T, LL)], Rev) </specTree>
          requires sizeof(T) ==K size(LL) andBool Bn <=Int Cur
@@ -1986,7 +1950,7 @@ module LLVM-MEMORY
          <toCommit> memList(Ava:K, Ava':Set, Avb:List, Avb':List, CML:List, ML:List)
                => memList(Ava, Ava', Avb:List, Avb':List,
                      CML, updateVarInList(Cur, Bn,
-               L, M, M'[X <- joinBytes(T, LL)], Rev)) </toCommit>
+               ML, M, M'[X <- joinBytes(T, LL)], Rev)) </toCommit>
          <specTree> Rev:Map => updateVarInSpecTree(Rev, Cur, .K, .K,
               M, M'[X <- joinBytes(T, LL)], Rev) </specTree>
          requires sizeof(T) ==K size(LL) andBool Bn <=Int Cur
@@ -2007,13 +1971,9 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackAddrSpace> Ad </stackAddrSpace>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap>... (Base +Int Other) |-> V:K ...</stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires matchAddSpaceStack(SIL, Base, Size, Ad)
          [transition]
 
     rule <readBack> readMap(M:Map (varInstance(Bn, In)
@@ -2023,17 +1983,12 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackAddrSpace> Ad':Int </stackAddrSpace>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap>... (Base +Int Other) |-> V:K ...</stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddSpaceStack(SIL, Base, Size, Ad)
          [transition]
 
     rule <threads> (<thread>...
@@ -2058,24 +2013,16 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int)))) L:List => .List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
         <output>... .List => ListItem("error: undefied behavior because read a field that has not initialized yet.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-               andBool notBool (Base +Int Other) in keys(BM)
+         requires notBool (Base +Int Other) in keys(BM)
+                 andBool isStackInChunckRange(SIL, Base, Size)
 
     //stack close memory location
     rule <stackOpList> (ListItem(singleMem(TID:Int, B, In,
                 stack, toClose(Base:Int))) => .List) L:List </stackOpList>
-         <stackObjects>...
-          (<stackObject> D:Bag
-           <stackThreadId> Tid </stackThreadId>
-           <stackChunckRange> value(Base:Int, Right:Int) </stackChunckRange>
-            </stackObject> => .Bag)
-         ...</stackObjects>
+         <stackInfo> SIL:List => removeStackObject(SIL, Base) </stackInfo>
          <localMemory> Local:Set (SetItem(Base) => .Set) </localMemory>
          <stackList> SL:List => removeMemBlock(SL, Base) </stackList>
 
@@ -2129,7 +2076,7 @@ module LLVM-MEMORY
          <toCommit> memList(Ava:K, Ava':Set, Avb:List, Avb':List, CML:List, ML:List)
                => memList(Ava, Ava', Avb:List, Avb':List,
                      CML, updateVarInList(Cur, Bn,
-               L, M, M'[X <- constStructVal(valValue(joinBytes(T, LL)),
+               ML, M, M'[X <- constStructVal(valValue(joinBytes(T, LL)),
                          valValue(N),.ElemList)], Rev)) </toCommit>
          <specTree> Rev:Map </specTree>
          requires sizeof(T) ==K size(LL) andBool Bn <=Int Cur
@@ -2177,14 +2124,10 @@ module LLVM-MEMORY
                   splitBytes(joinBytes(T, getMemWithAtomic(BM, Base, 0, Size))
                                +Int 1, getInnerType(vaArgType))), base(Loc),
               sizeof(getInnerType(vaArgType)), 0, monotonic)))) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                 ...</stackObject>
+        <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
          <vaList> value(VaType:K, VaLoc:Loc) </vaList>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool isChunckWritten(BM, Base, Base +Int Size)
               andBool sizeOfStruct(VaType, joinBytes(T,
                              getMemWithAtomic(BM, Base, 0, Size))) =/=K -1
@@ -2205,14 +2148,10 @@ module LLVM-MEMORY
                   splitBytes(joinBytes(T, getMemWithAtomic(BM, Base, 0, Size))
                               , getInnerType(vaArgType))), base(Loc),
               sizeof(getInnerType(vaArgType)), 0, monotonic)))) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                 ...</stackObject>
+        <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
          <vaList> value(VaType:K, VaLoc:Loc) </vaList>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool isChunckWritten(BM, Base, Base +Int Size)
          [transition]
 
@@ -3003,14 +2942,9 @@ module LLVM-MEMORY
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-          <stackRange> constant </stackRange>
-                ...</stackObject>
+        <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map => updateMemWithAtomic(BM, Base, V) </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires matchAddSpaceStack(SIL, Base, Size, Ad)
               andBool notBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <threads> (<thread>...
@@ -3034,62 +2968,43 @@ module LLVM-MEMORY
           <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) L:List => .List) </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-           <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-           <stackRange> constant </stackRange>
-            ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <output>... .List =>
             ListItem("atomic write a byte in a statck constant field that has been initialized.")
          </output>
          <stackMap> BM:Map </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isConstantStack(SIL, Base, Size)
                    andBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-          <stackRange> stack </stackRange>
-                ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map => updateMemWithAtomic(BM, Base, V) </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isNormalStack(SIL, Base, Size)
 
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad':Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-          <stackRange> constant </stackRange>
-              ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map => updateMemWithAtomic(BM, Base, V) </stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                  andBool Ad =/=K Ad'
+         requires isConstantStack(SIL, Base, Size)
+                  andBool notBool matchAddSpaceStack(SIL, Base, Size, Ad)
                    andBool notBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad':Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-          <stackRange> stack </stackRange>
-              ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map => updateMemWithAtomic(BM, Base, V) </stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                  andBool Ad =/=K Ad'
+         requires isNormalStack(SIL, Base, Size)
+                  andBool notBool matchAddSpaceStack(SIL, Base, Size, Ad)
 
     //atomic readwrite in stack
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -3105,14 +3020,10 @@ module LLVM-MEMORY
               => ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
               atomicWrite(T2, splitBytes(V, T2), storeOperand(Tid, T2, V), Base,
               sizeof(T2), Ad', Order)))) L:List </stackOpList>
-         <stackObject>...
-           <stackRange> stack </stackRange>
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                     ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isNormalStack(SIL, Base, Size)
+                  andBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) ==K 1
@@ -3128,14 +3039,10 @@ module LLVM-MEMORY
             V:K, loc(Base:Int, pointerTypeValue(Type, Ad':Int),
                       value(Left:Int, Right:Int), stack, none, InR:K)))))
                        => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackRange> stack </stackRange>
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-              ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isNormalStack(SIL, Base, Size)
+                  andBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) =/=K 1
@@ -3154,18 +3061,13 @@ module LLVM-MEMORY
               atomicWrite(T2, splitBytes(V, T2)
              , storeOperand(Tid, T2, V), Base,
               sizeof(T2), Ad', Order)))) L:List </stackOpList>
-         <stackObject>...
-           <stackRange> stack </stackRange>
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad1:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                     ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                  andBool Ad =/=K Ad1
+         requires isNormalStack(SIL, Base, Size)
+                  andBool notBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) ==K 1
@@ -3181,18 +3083,13 @@ module LLVM-MEMORY
             V:K, loc(Base:Int, pointerTypeValue(Type, Ad':Int),
                       value(Left:Int, Right:Int), stack, none, InR:K)))))
                        => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackRange> stack </stackRange>
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad1:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                 ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                  andBool Ad =/=K Ad1
+         requires isNormalStack(SIL, Base, Size)
+                  andBool notBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) =/=K 1
@@ -3212,14 +3109,10 @@ module LLVM-MEMORY
              , storeOperand(Tid, T2, applyAtomicrmwInt(Op, T2,
                    joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), V)), Base,
               sizeof(T2), Ad', Order)))) L:List </stackOpList>
-         <stackObject>...
-           <stackRange> stack </stackRange>
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isNormalStack(SIL, Base, Size)
+                  andBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -3237,18 +3130,13 @@ module LLVM-MEMORY
              , storeOperand(Tid, T2, applyAtomicrmwInt(Op, T2,
                    joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), V)), Base,
               sizeof(T2), Ad', Order)))) L:List </stackOpList>
-         <stackObject>...
-           <stackRange> stack </stackRange>
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad1:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                 ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                  andBool Ad =/=K Ad1
+         requires isNormalStack(SIL, Base, Size)
+                  andBool notBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
 
     rule <k> A:K => .K </k>
@@ -3260,13 +3148,10 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicReadWrite(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K, Next:K))) L:List => .List) </stackOpList>
-         <stackObject>...
-            <stackThreadId> Tid </stackThreadId>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-         <stackRange> constant </stackRange> ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
         <output>... .List
             => ListItem("error: atomicrmw or cmpxchg op cannot work on constant stack location.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isConstantStack(SIL, Base, Size)
 
     rule <threads> (<thread>...
          <threadId> TID </threadId>
@@ -3288,13 +3173,9 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicRead(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                 ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -3304,17 +3185,12 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicRead(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-         <stackAddrSpace> Ad':Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                      ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                  andBool Ad =/=K Ad'
+         requires notBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <k> A:K => .K </k>
@@ -3326,13 +3202,10 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         atomicRead(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                      ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
         <output>... .List => ListItem("undefied behavior because atomic loading a stack that has not been initialized fully.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isStackInChunckRange(SIL, Base, Size)
                  andBool notBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <threads> (<thread>...
@@ -3350,6 +3223,7 @@ module LLVM-MEMORY
 
     rule <threads> (TD:Bag
          <thread>...
+         <stackInfo> SIL:List </stackInfo>
          <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
                         memmoveRead(Base:Int,
                   Size:Int, Ad:Int, Order:K)))) L:List </stackOpList>
@@ -3357,12 +3231,8 @@ module LLVM-MEMORY
          <threadId> Tid </threadId>
          ...</thread>) => .Bag
          </threads>
-         <stackObject>...
-           <stackThreadId> Tid </stackThreadId>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                      ...</stackObject>
         <output>... .List => ListItem("undefied behavior because atomic loading a stack that has not been initialized fully.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isStackInChunckRange(SIL, Base, Size)
                  andBool notBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <k> staticLoadHold(T:K)
@@ -3372,13 +3242,9 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(TID:Int, Bn:Int, In:Int,stack,
                         memmoveRead(Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> TID </stackThreadId>
-         <stackAddrSpace> Ad:Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                 ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <k> staticLoadHold(T:K)
@@ -3388,18 +3254,13 @@ module LLVM-MEMORY
          <stackOpList> (ListItem(singleMem(TID:Int, Bn:Int, In:Int,stack,
                         memmoveRead(Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </stackOpList>
-         <stackObject>...
-           <stackThreadId> TID </stackThreadId>
-         <stackAddrSpace> Ad':Int </stackAddrSpace>
-            <stackChunckRange> value(Left:Int, Right:Int) </stackChunckRange>
-                 ...</stackObject>
+         <stackInfo> SIL:List </stackInfo>
          <stackMap> BM:Map </stackMap>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires notBool matchAddSpaceStack(SIL, Base, Size, Ad)
                  andBool isChunckWritten(BM, Base, Base +Int Size)
-                  andBool Ad =/=K Ad'
 
     rule <threads> (<thread>...
          <threadId> TID </threadId>

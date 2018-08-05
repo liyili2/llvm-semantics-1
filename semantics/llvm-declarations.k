@@ -163,9 +163,9 @@ module LLVM-DECLARATIONS
         <blockCount> Count:Int => Count +Int 1 </blockCount>
         <specTree> M:Map => M[Count <-
                        runBlock(Count, Label, none,
-                     formMemList(Count, formInstList(1, .K, Body), VaLoc),
+                     formMemList(Count, formInstList(1, .K, Body), getCoreVaLog(VaLoc)),
                  getVarsFromVarOp(.K, OutDefs -Set InDefs), .Set)] </specTree>
-        <vaList> value(_:K, VaLoc:Loc) </vaList>
+        <vaList> VaLoc:K </vaList>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>
         <functionName> FunName </functionName>

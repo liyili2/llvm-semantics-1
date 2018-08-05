@@ -185,13 +185,13 @@ module LLVM-CALL-RET
          <blockCount> Count:Int => Count +Int 1 </blockCount> 
          <specTree> Rev:Map => 
              updateVarInSpecTree(formMemListWithMem(Count, guessNextBlock(In), N,
-                    formInstList(1, .K, Body), VaLoc,
+                    formInstList(1, .K, Body), getCoreVaLog(VaLoc),
                   getVarsFromVarOp(.K, OutDef -Set InDef),
                        addChildToKey(Rev, N, Count)), BN, .K,.K, M',M, Rev) </specTree>
          <restChoice> RM:Map => RM[N:Int <- nextSpecs(getRestBlocks(In, .K,
                   (guessNextBlock(In) |-> blockContent(Body, Flag,
                     InEg, OutEgs, InDef, InUse, OutDef, OutUse, Use)) BM))] </restChoice>
-         <vaList> value(_:K, VaLoc:Loc) </vaList>
+         <vaList> VaLoc:K </vaList>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>
         <currFunction> FunName:SymbolicValueRef </currFunction>
@@ -231,10 +231,10 @@ module LLVM-CALL-RET
                  ...</toExecute>
          <specTree> Rev:Map => cutOffWrongBranches(OldCount, NewCount,
                     formMemListWithMem(Count, Name, Fa,
-             formInstList(1, .K, Body), VaLoc, getVarsFromVarOp(.K,
+             formInstList(1, .K, Body), getCoreVaLog(VaLoc), getVarsFromVarOp(.K,
             OutDef -Set InDef), addChildToKey(Rev, Fa, Count))) </specTree>
          <restChoice> RM:Map => updateChoiceInMap(RM,Fa,Cs) </restChoice>
-         <vaList> value(_:K, VaLoc:Loc) </vaList>
+         <vaList> VaLoc:K </vaList>
          <currBlock> blockHold(basicBlockNum(BN:Int, CurLabel:K)) </currBlock>
          <blockCount> Count:Int => Count +Int 1 </blockCount> 
          <currModule> ModName:SymbolicValueRef </currModule>
@@ -253,10 +253,10 @@ module LLVM-CALL-RET
             selectPhis(Fa, getFatherName(Fa, Rev), formInstList(1, .K, Body)))
                  ...</toExecute>
          <specTree> Rev:Map => formMemListWithMem(Count, Name, Fa,
-             formInstList(1, .K, Body), VaLoc, getVarsFromVarOp(.K,
+             formInstList(1, .K, Body), getCoreVaLog(VaLoc), getVarsFromVarOp(.K,
             OutDef -Set InDef), addChildToKey(Rev, Fa, Count)) </specTree>
          <restChoice> RM:Map => updateChoiceInMap(RM,Fa,Cs) </restChoice>
-         <vaList> value(_:K, VaLoc:Loc) </vaList>
+         <vaList> VaLoc:K </vaList>
          <currBlock> basicBlockNum(BN:Int, CurLabel:K) </currBlock>
          <blockCount> Count:Int => Count +Int 1 </blockCount> 
          <currModule> ModName:SymbolicValueRef </currModule>
@@ -268,52 +268,43 @@ module LLVM-CALL-RET
           [transition]
 
     rule <instQueue> instList(ListItem(A:K) L:List)
-                      => splitQueue(.List, ListItem(A), L) </instQueue>
+                      => splitQueue(.List, .List, ListItem(A) L) </instQueue>
          <cpu> .K </cpu>
+         requires hasAvailables(ListItem(A) L)
          [structural]
 
-    rule <instQueue> splitQueue(.List, ListItem(dynInstInfo(BN:Int,
+    rule <instQueue> splitQueue(ListItem(dynInstInfo(BN:Int,
+                        IN:Int, Inst:K, T:K)) AV:List,
+                   ListItem(dynInstInfo(BN:Int,
                         IN:Int, Inst:K, T:K)) Pre:List, L:List)
                => instList(Pre L) </instQueue>
          <cpu> .K => dynInstInfo(BN, IN, Inst, T) </cpu>
-          requires (T ==K terminators) orBool (T ==K returnInst)
+          requires ((T ==K terminators) orBool (T ==K returnInst)
                    orBool (T ==K callInst) orBool (T ==K vaInst)
-                    orBool (T ==K fenceInst)
-         [structural]
-
-    rule <instQueue> splitQueue(AV:List, ListItem(dynInstInfo(BN:Int,
-                        IN:Int, Inst:K, T:K)) Pre:List, L:List)
-               => instList(Pre L) </instQueue>
-         <cpu> .K => dynInstInfo(BN, IN, Inst, T) </cpu>
-          requires (T =/=K terminators) andBool (T =/=K returnInst)
-                   andBool (T =/=K callInst) andBool (T =/=K vaInst)
-                   andBool (T =/=K fenceInst)
+                    orBool (T ==K fenceInst))
          [transition]
 
     rule <instQueue> splitQueue(Av:List ListItem(dynInstInfo(BN:Int,
                   IN:Int, Inst:K, T:K)), Pre:List, L:List)
                    => instList(removeInst(BN,IN,Pre L)) </instQueue>
          <cpu> .K => dynInstInfo(BN, IN, Inst, T) </cpu>
+          requires (T =/=K terminators) andBool (T =/=K returnInst)
+                   andBool (T =/=K callInst) andBool (T =/=K vaInst)
+                   andBool (T =/=K fenceInst)
          [transition]
 
     rule <instQueue> splitQueue(AV:List, Pre:List,
                 ListItem(dynInstInfo(BN:Int, IN:Int, Inst:K, T:K)) L:List)
           => splitQueue(AV ListItem(dynInstInfo(BN:Int, IN:Int, Inst:K, T:K)),
               Pre ListItem(dynInstInfo(BN:Int, IN:Int, Inst:K, T:K)), L) </instQueue>
-          requires (T =/=K terminators) andBool (T =/=K returnInst)
-                  andBool (T =/=K callInst) andBool (T =/=K vaInst)
-                    andBool (T =/=K fenceInst)
-                    andBool (isAvailable(Inst))
+          requires isAvailable(Inst)
          [transition]
 
     rule <instQueue> splitQueue(AV:List, Pre:List,
                 ListItem(dynInstInfo(BN:Int, IN:Int, Inst:K, T:K)) L:List)
           => splitQueue(AV, Pre ListItem(dynInstInfo(BN:Int,
                                 IN:Int, Inst:K, T:K)), L) </instQueue>
-          requires (T ==K terminators) orBool (T ==K returnInst)
-                  orBool (T ==K callInst) orBool (T ==K vaInst)
-                   orBool (T ==K fenceInst)
-                    orBool (notBool isAvailable(Inst))
+          requires notBool isAvailable(Inst)
          [transition]
 
     rule <cpu> dynInstInfo(BN:Int, IN:Int, Inst:K, T:K)
@@ -450,21 +441,13 @@ module LLVM-CALL-RET
     rule clearLocalMemory(.K, SetItem(A:K) S:Set) => clearLocalMemory(A, S)
     rule
         <k> clearLocalMemory((Base:Int => .K), _) ...</k>
-        <threadId> Tid </threadId>
-        <stackThreadId> Tid:Int </stackThreadId> 
         <stackList> SL:List => removeLocalStack(Base, SL) </stackList>
-        (<stackObject>...
-            <stackChunckRange> value(Base:Int, X:K) </stackChunckRange>
-           ...</stackObject> => .Bag)
+        <stackInfo> SI:List => removeStackObject(SI, Base) </stackInfo>
 
     rule
         <k> clearLocalMemory((inAlloca(Base:Int) => .K), _) ...</k>
-        <threadId> Tid </threadId>
-        <stackThreadId> Tid:Int </stackThreadId> 
         <stackList> SL:List => removeLocalStack(Base, SL) </stackList>
-        (<stackObject>...
-           <stackChunckRange> value(Base:Int, X:K) </stackChunckRange>
-          ...</stackObject> => .Bag)
+        <stackInfo> SI:List => removeStackObject(SI, Base) </stackInfo>
 
     rule initializer(void, V:K) ~> clearVoid => .K
     rule initializer(T:K, V:KResult) ~> clearVoid => V

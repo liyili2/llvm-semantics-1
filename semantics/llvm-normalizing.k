@@ -989,7 +989,7 @@ module LLVM-NORMALIZING
     //deal with type of alloca
     rule <k> exprAllocaType(TheCount:Int, X:K, T:K, valValue(
               typeOperandResult(T1:K, V:K)),.ElemList,
-          Ad:Int, Align:Int, Mods:Set, Meta:K) => .K </k>
+          Ad:Int, Align:Int, Mods:Set, Meta:K) => .K ...</k>
         <tempBlockMap> Now:Map => Now (TheCount |->
               instNumInfo(TheCount, assign(X, instruction(
                   alloca(T,preAlloca(T1, V), Ad, Align, false),
@@ -2907,7 +2907,7 @@ module LLVM-NORMALIZING
 
     rule typeCheckConstExpr(T:KResult, undef) => typeOperandResult(T, undef)
     rule typeCheckConstExpr(T:KResult, zeroinitializer)
-             => dealWithZeroInitializer(T)
+             => putZeroInitializer(T)
     rule typeCheckConstExpr(integerType(N:Int), A:KResult)
                => typeCheckIntExpr(integerType(N:Int), A)
 
@@ -3076,7 +3076,7 @@ module LLVM-NORMALIZING
     rule typeCheckSingleArg(Name:SymbolicValueRef,
                   vectorTypeValue(T:K, I:Int), V:K)
          => checkUseVarInside(Name, vectorTypeValue(T:K, I:Int), V)
-             ~> typeCheckVectorArg(vectorTypeValue(T:K, I:Int), I, V)
+             ~> preTypeCheckVectorArg(vectorTypeValue(T:K, I:Int), I, V)
     rule typeCheckSingleArg(Name:SymbolicValueRef,
                   integerType(N:Int), V:K)
          => checkUseVarInside(Name, integerType(N:Int), V)
@@ -3101,7 +3101,7 @@ module LLVM-NORMALIZING
     rule typeCheckStructExpr(T:KResult, T':KResult, undef, .ElemList)
                    => typeOperandResult(T, undef)
     rule typeCheckStructExpr(T:KResult, T':KResult, zeroinitializer, .ElemList)
-               => typeOperandResult(T, dealWithZeroInitializer(T))
+               => typeOperandResult(T, putZeroInitializer(T))
     rule <k> typeCheckStructExpr(T:KResult, T':KResult, X:SymbolicValueRef, Es:ElemList)
                ~> K:K => .K </k>
          <output>... .List => ListItem("error: global variable must be pointer type instead of struct type.") </output>
@@ -3145,7 +3145,7 @@ module LLVM-NORMALIZING
     rule typeOperandResult(T:K, V:K)
                ~> typeCheckStructExpr(T1:K, T1':K, V1:K, Vs:ElemList)
              => typeCheckStructExpr(T1, T1', V1,
-                addElemToEnd(valValue(typeOperandResult(T:K, V:K)), Vs))
+                addElemToEnd(val(operand(T:K, V:K)), Vs))
 
     rule typeCheckStructExpr(T1:KResult, packedStructTypeValue(T:KResult, Ts:TypeList),
                  packedStruct(val(operand(T':K, V:K)), Es:ElemList), Vs:ElemList)
@@ -3198,7 +3198,7 @@ module LLVM-NORMALIZING
 
     rule typeCheckArrayExpr(T:KResult, I:Int, undef) => typeOperandResult(T, undef)
     rule typeCheckArrayExpr(T:KResult, I:Int, zeroinitializer)
-                    => typeOperandResult(T, dealWithZeroInitializer(T))
+                    => typeOperandResult(T, putZeroInitializer(T))
     rule <k> typeCheckArrayExpr(T:KResult, I:Int, X:SymbolicValueRef)
                  ~> K:K => .K </k>
          <output>... .List => ListItem("error: global variable must have pointer type instead of array type.") </output>
@@ -3233,7 +3233,7 @@ module LLVM-NORMALIZING
     rule typeOperandResult(T:K, V:K) ~> typeCheckArrayExpr(
              T':K, N, T2:K, V:K, Vs:ElemList, Es:ElemList)
           => typeCheckArrayExpr(T', N, skipValue, T2, V, Vs,
-          addElemToEnd(valValue(typeOperandResult(T:K, V:K)), Es))
+          addElemToEnd(val(operand(T:K, V:K)), Es))
 
     rule <k> typeCheckArrayExpr(arrayTypeValue(T:KResult, I:Int),
                           N:Int, T':KResult, V:K, Vs:ElemList, Es:ElemList) ~> K:K
@@ -3303,7 +3303,7 @@ module LLVM-NORMALIZING
 
     rule typeCheckVectorArg(T:KResult, I:Int, undef) => typeOperandResult(T, undef)
     rule typeCheckVectorArg(T:KResult, I:Int, zeroinitializer)
-           => typeOperandResult(T, dealWithZeroInitializer(T))
+           => typeOperandResult(T, putZeroInitializer(T))
 
     rule <k> typeCheckVectorArg(T:KResult, I:Int, X:SymbolicValueRef)
                ~> K:K => .K </k>
@@ -3346,7 +3346,7 @@ module LLVM-NORMALIZING
                 N:Int, T1:K, V1:K, Vs:ElemList, Es:ElemList)
           => typeCheckVectorArg(vectorTypeValue(T:KResult, I:Int),
                 N:Int, T1:K, V1:K, Vs:ElemList,
-          addElemToEnd(valValue(typeOperandResult(T:KResult, V:K)), Es:ElemList))
+          addElemToEnd(val(operand(T:KResult, V:K)), Es:ElemList))
 
     rule <k> typeCheckVectorArg(vectorTypeValue(T:KResult, I:Int),
                           N:Int, T':KResult, V:K, Vs:K, Es:K) ~> K:K
@@ -3390,7 +3390,7 @@ module LLVM-NORMALIZING
     rule typeCheckFloatExpr(T:FPType, A:ConstExpr) => typeCheckConstExpr(T, A)
     rule typeCheckFloatExpr(T:FPType, undef) => typeOperandResult(T, undef)
     rule typeCheckFloatExpr(T:FPType, zeroinitializer)
-                     => typeOperandResult(T, dealWithZeroInitializer(T))
+                     => typeOperandResult(T, putZeroInitializer(T))
     rule typeCheckFloatExpr(T:FPType, float(A:Int, B:Int, L:List))
                    => typeOperandResult(T, float(A:Int, B:Int, L:List))
     rule typeCheckFloatExpr(T:FPType, nan) => typeOperandResult(T, nan)
@@ -3476,7 +3476,7 @@ module LLVM-NORMALIZING
     rule typeCheckPointerExpr(
                 pointerTypeValue(T:KResult, Ad:KResult), zeroinitializer)
           => typeOperandResult(pointerTypeValue(T:KResult, Ad:KResult),
-           dealWithZeroInitializer(pointerTypeValue(T:KResult, Ad:KResult)))
+           putZeroInitializer(pointerTypeValue(T:KResult, Ad:KResult)))
     rule <k> typeCheckPointerExpr(
            pointerTypeValue(T:KResult, Ad:KResult), X:SymbolicValueRef)
             => typeOperandResult(pointerTypeValue(T:KResult, Ad:KResult), X) ...</k>

@@ -45,6 +45,40 @@ module LLVM-HELPERS
     rule dealWithUndefAux(T:K, Ts:TypeList)
             => valValue(dealWithUndef(T)), dealWithUndefAux(Ts)
 
+    syntax KItem ::= putZeroInitializer(K) [function]
+                   | putZeroVectorAux(K, K, K)  [function]
+                   | putZeroArrayAux(K, K, K)   [function]
+                   | putZeroInitializerAux(TypeList) [function]
+    rule putZeroInitializer(vectorTypeValue(T:K, N:Int))
+            => vector(putZeroVectorAux(T:K, N:Int, .ElemList))
+    rule putZeroInitializer(integerType(N:Int)) => operand(integerType(N:Int), 0)
+    rule putZeroInitializer(A:K) => operand(A, posZero)
+         requires isFloatType(A)
+    rule putZeroInitializer(pointerTypeValue(X:K, Y:K))
+               => operand(pointerTypeValue(X:K, Y:K), loc(nullMemoryLoc, void,
+                          value(nullMemoryLoc,nullMemoryLoc),heap, none, none))
+    rule putZeroInitializer(arrayTypeValue(T:K, N:Int))
+           => array(putZeroArrayAux(T, N, .ElemList))
+    rule putZeroInitializer(structTypeValue(Ts:K))
+           => constantStruct(putZeroInitializerAux(Ts))
+    rule putZeroInitializer(packedStructTypeValue(Ts:K))
+           => packedStruct(putZeroInitializerAux(Ts))
+
+    rule putZeroInitializerAux(.TypeList) => .ElemList
+    rule putZeroInitializerAux(T:K, Ts:TypeList)
+            => val(putZeroInitializer(T)), putZeroInitializerAux(Ts)
+
+    rule putZeroVectorAux(T, N:Int, Es:ElemList) => Es
+         requires N ==Int 0
+    rule putZeroVectorAux(T, N:Int, Es:ElemList)
+               => putZeroVectorAux(T, N -Int 1, val(putZeroInitializer(T)),Es)
+         requires N >Int 0
+    rule putZeroArrayAux(T, N:Int, Es:ElemList) => Es
+         requires N ==Int 0
+    rule putZeroArrayAux(T, N:Int, Es:ElemList)
+               => putZeroArrayAux(T, N -Int 1, val(putZeroInitializer(T)),Es)
+         requires N >Int 0
+
     syntax KItem ::= dealWithZeroInitializer(K) [function]//t, v
                    | zeroVectorAux(K, K, K)  [function]
                    | zeroArrayAux(K, K, K)   [function]
@@ -289,685 +323,694 @@ module LLVM-HELPERS
               => pairResult(A, Op)
 
     //get mem op from a list of ops
-    syntax KItem ::= toMemElem(K, Loc) [function]
+    syntax KItem ::= toMemElem(K, K) [function]
     rule toMemElem(instNumInfo(TheCount:Int, noAssign(
                   instruction(store(T1:K, V1:K,T2:K, V2:K, Align:K, Vol:Bool),
-                       Mods:Set, Meta:K)),storeInst), Va:Loc)
+                       Mods:Set, Meta:K)),storeInst), Va:K)
             => pairResult(TheCount, toWrite(V2, none, Vol))
          requires getOrdering(.K, Mods) ==K .K
     rule toMemElem(instNumInfo(TheCount:Int, noAssign(
                   instruction(store(T1:K, V1:K,T2:K, V2:K, Align:K, Vol:Bool),
-                       Mods:Set, Meta:K)),storeInst), Va:Loc)
+                       Mods:Set, Meta:K)),storeInst), Va:K)
                => pairResult(TheCount, toWrite(V2, getOrdering(.K, Mods), Vol))
          requires getOrdering(.K, Mods) =/=K .K
     rule toMemElem(instNumInfo(TheCount:Int,assign(X:K,
                    instruction(load(T:K, V:K, Align:Int, Vol:Bool),
-                  Mods:Set, Meta:K)),loadInst), Va:Loc)
+                  Mods:Set, Meta:K)),loadInst), Va:K)
            => pairResult(TheCount, toRead(V, none, Vol))
          requires getOrdering(.K, Mods) ==K .K
     rule toMemElem(instNumInfo(TheCount:Int,assign(X:K,
                    instruction(load(T:K, V:K, Align:Int, Vol:Bool),
-                  Mods:Set, Meta:K)),loadInst), Va:Loc)
+                  Mods:Set, Meta:K)),loadInst), Va:K)
                => pairResult(TheCount, toRead(V, getOrdering(.K, Mods), Vol))
          requires getOrdering(.K, Mods) =/=K .K
     rule toMemElem(instNumInfo(TheCount:Int, noAssign(
-                  instruction(fence(Od:K), Mods, Meta:K)),fenceInst), Va:Loc)
+                  instruction(fence(Od:K), Mods, Meta:K)),fenceInst), Va:K)
              => pairResult(TheCount, fence(Od))
     rule toMemElem(instNumInfo(TheCount:Int, assign(X:K,
                   instruction(theVAArg(T1:K, V:K,T2:K)
                    ,Mods:Set, Meta)),readWriteInst), Va:Loc)
           => pairResult(TheCount, toReadWrite(SetItem(V) SetItem(Va), .List, false))
     rule toMemElem(instNumInfo(TheCount:Int, assign(X:K,
+                  instruction(theVAArg(T1:K, V:K,T2:K)
+                   ,Mods:Set, Meta)),readWriteInst), .K)
+          => pairResult(TheCount, toReadWrite(SetItem(V), .List, false))
+    rule toMemElem(instNumInfo(TheCount:Int, assign(X:K,
                   instruction(cmpxchg(operand(T1:K, V1:K), TV2:K, TV3:K, Or1:K, Or2:K, Vol:Bool)
-                   ,Mods:Set, Meta)),readWriteInst), Va:Loc)
+                   ,Mods:Set, Meta)),readWriteInst), Va:K)
           => pairResult(TheCount, toReadWrite(SetItem(V1), ListItem(Or1) ListItem(Or2), Vol))
     rule toMemElem(instNumInfo(TheCount:Int, assign(X:K,
                   instruction(atomicrmw(B:K, operand(T1:K, V1:K), TV2:K, Or:K, Vol:Bool)
-                   ,Mods:Set, Meta)),readWriteInst), Va:Loc)
+                   ,Mods:Set, Meta)),readWriteInst), Va:K)
           => pairResult(TheCount, toReadWrite(SetItem(V1), ListItem(Or), Vol))
-    rule toMemElem(instNumInfo(TheCount:Int, Op:K,callInst), Va:Loc)
+    rule toMemElem(instNumInfo(TheCount:Int, Op:K,callInst), Va:K)
           => pairResult(TheCount, acquireFence)
-    rule toMemElem(A:K, Va:Loc) => none [owise]
+    rule toMemElem(A:K, Va:K) => none [owise]
 
-    syntax KItem ::= getMemOps(Int, List, K, List, K, K, Loc) [function]
+    syntax KItem ::= getMemOps(Int, List, K, List, K, K, K) [function]
             //blockid,finish, cur, toGet, pre-op
 
-    rule getMemOps(Bn:Int, L:List, .K, .List, Pre:K, Re:K, Loc:Loc)
+    rule getMemOps(Bn:Int, L:List, .K, .List, Pre:K, Re:K, Loc:K)
                 => pairResultList(pairResult(Bn, Re), L)
          requires Re =/=K .K
-    rule getMemOps(Bn:Int, L:List, .K, .List, Pre:K, .K, Loc:Loc) => pairResultList(none, L)
-    rule getMemOps(Bn:Int, L:List, .K, ListItem(Op:K) S:List, Pre:K, Re:K, Loc:Loc)
-          => getMemOps(Bn:Int, L, toMemElem(Op, Loc), S, Pre, Re, Loc:Loc)
-    rule getMemOps(Bn:Int, L:List, none, S:List, Pre:K, Re:K, Loc:Loc)
-              => getMemOps(Bn:Int, L, .K, S, Pre, Re, Loc:Loc)
+    rule getMemOps(Bn:Int, L:List, .K, .List, Pre:K, .K, Loc:K)
+                     => pairResultList(none, L)
+    rule getMemOps(Bn:Int, L:List, .K, ListItem(Op:K) S:List, Pre:K, Re:K, Loc:K)
+          => getMemOps(Bn:Int, L, toMemElem(Op, Loc), S, Pre, Re, Loc:K)
+    rule getMemOps(Bn:Int, L:List, none, S:List, Pre:K, Re:K, Loc:K)
+              => getMemOps(Bn:Int, L, .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List, pairResult(
-                      Count:Int, toRead(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                      Count:Int, toRead(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
          => getMemOps(Bn:Int, L ListItem(memProto(
-           Count, toRead(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+           Count, toRead(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List, pairResult(
-                      Count:Int, acquireFence), S:List, Pre:K, Re:K, Loc:Loc)
+                      Count:Int, acquireFence), S:List, Pre:K, Re:K, Loc:K)
          => getMemOps(Bn:Int, L ListItem(memProto(
-           Count, acquireFence, .Map, false)), .K, S, Pre, Re, Loc:Loc)
+           Count, acquireFence, .Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List,
-                       pairResult(Count:Int, fence(release)), S:List, Pre:K, Re:K, Loc:Loc)
+                       pairResult(Count:Int, fence(release)), S:List, Pre:K, Re:K, Loc:K)
          => getMemOps(Bn:Int, L ListItem(memProto(
-              Count, fence(release), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+              Count, fence(release), .Map, false)), .K, S, Pre, Re, Loc:K)
     //when fence is an acquire, then it is safe, and we must look at the next one
     //deal with cases when a read or a read write following by a fence
     rule getMemOps(Bn:Int, L:List ListItem(
                     memProto(Count:Int, toRead(V:K, Od:K, Vol:Bool), SM:Map, Fl:K)),
-              pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, toRead(V, Od, Vol:Bool), SM, Fl:K))
-            ListItem(memProto(Count', acquireFence, .Map, false)), .K, S, Pre, Re, Loc:Loc)
+            ListItem(memProto(Count', acquireFence, .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, L:List ListItem(
                    memProto(Count:Int, toRead(V:K, Od:K, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, toRead(V:K, Od:K, Vol:Bool), SM, Fl:K))
-                 ListItem(memProto(Count', fence(acquire), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                 ListItem(memProto(Count', fence(acquire), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int,
                 toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K)),
-           pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:Loc)
+           pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                 toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K))
-               ListItem(memProto(Count', acquireFence, .Map, false)), .K, S, Pre, Re, Loc:Loc)
+               ListItem(memProto(Count', acquireFence, .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, L:List ListItem(
                      memProto(Count:Int, toReadWrite(V:Set, .List, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                           toReadWrite(V:Set, .List, Vol:Bool), SM:Map, Fl:K))
-             ListItem(memProto(Count', fence(acquire),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+             ListItem(memProto(Count', fence(acquire),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(
                      memProto(Count:Int, toReadWrite(V:Set,
                         ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(acquire)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                    toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K))
-             ListItem(memProto(Count', fence(acquire),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+             ListItem(memProto(Count', fence(acquire),.Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //if the fence op is the first in the block
     rule getMemOps(Bn:Int, .List, pairResult(
-                Count:Int, fence(acquire)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:Loc)
+                Count:Int, fence(acquire)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, acquireFence, .Map, false)),
-                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(
-               Count:Int, fence(acquire)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:Loc)
+               Count:Int, fence(acquire)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(acquire),.Map, false)),
-                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(
                 Count:Int, fence(acquire)), S:List,
-                  toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:Loc)
+                  toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, acquireFence, .Map, false)),
-                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(
                Count:Int, fence(acquire)), S:List,
-                 toReadWrite(V:Set, .List, Vol:Bool), Re:K, Loc:Loc)
+                 toReadWrite(V:Set, .List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(acquire),.Map, false)),
-                        .K, S, toReadWrite(V:Set, .List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, .List, Vol:Bool), Re, Loc:K)
     rule getMemOps(Bn:Int, .List, pairResult(
                Count:Int, fence(acquire)), S:List,
-                 toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:Loc)
+                 toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(acquire),.Map, false)),
-                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //deal with case when fence is a acq_rel
     rule getMemOps(Bn:Int, L:List ListItem(memProto(
                         Count:Int, toRead(V:K, Od:K, Vol:Bool), SM:Map, Fl:K)),
-              pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, toRead(V, Od, Vol:Bool), SM, Fl:K))
-              ListItem(memProto(Count', readRWFence, .Map, false)), .K, S, Pre, Re, Loc:Loc)
+              ListItem(memProto(Count', readRWFence, .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, L:List ListItem(
                    memProto(Count:Int, toRead(V:K, Od:K, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, toRead(V:K, Od:K, Vol:Bool), SM, Fl:K))
-                 ListItem(memProto(Count', fence(acq_rel), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                 ListItem(memProto(Count', fence(acq_rel), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int,
             toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K)),
-           pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:Loc)
+           pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                     toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K))
-               ListItem(memProto(Count', readRWFence, .Map, false)), .K, S, Pre, Re, Loc:Loc)
+               ListItem(memProto(Count', readRWFence, .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int,
                        toReadWrite(V:Set, .List, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                              toReadWrite(V:Set, .List, Vol:Bool), SM:Map, Fl:K))
-             ListItem(memProto(Count', fence(acq_rel),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+             ListItem(memProto(Count', fence(acq_rel),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int,
                        toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(acq_rel)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                              toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K))
-             ListItem(memProto(Count', fence(acq_rel),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+             ListItem(memProto(Count', fence(acq_rel),.Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //if the acq_rel fence op is the first in the block
     rule getMemOps(Bn:Int, .List, pairResult(
-                Count:Int, fence(acq_rel)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:Loc)
+                Count:Int, fence(acq_rel)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, readRWFence, .Map, false)),
-                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(
-               Count:Int, fence(acq_rel)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:Loc)
+               Count:Int, fence(acq_rel)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(acq_rel),.Map, false)),
-                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(
                 Count:Int, fence(acq_rel)), S:List,
-                       toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:Loc)
+                       toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, readRWFence, .Map, false)),
-                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(
                Count:Int, fence(acq_rel)), S:List,
-                      toReadWrite(V:Set, .List, Vol:Bool), Re:K, Loc:Loc)
+                      toReadWrite(V:Set, .List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(acq_rel),.Map, false)),
-                        .K, S, toReadWrite(V:Set, .List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, .List, Vol:Bool), Re, Loc:K)
     rule getMemOps(Bn:Int, .List, pairResult(
                Count:Int, fence(acq_rel)), S:List,
-                      toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:Loc)
+                      toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(acq_rel),.Map, false)),
                         .K, S, toReadWrite(V:Set,
-                               ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:Loc)
+                               ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //deal with case when fence is a seq
     rule getMemOps(Bn:Int, L:List ListItem(memProto(
                   Count:Int, toRead(V:K, Od:K, Vol:Bool), SM:Map, Fl:K)),
-              pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, toRead(V, Od, Vol:Bool), SM, Fl:K))
-         ListItem(memProto(Count', readSeqFence, .Map, false)), .K, S, Pre, Re, Loc:Loc)
+         ListItem(memProto(Count', readSeqFence, .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, L:List ListItem(
                    memProto(Count:Int, toRead(V:K, Od:K, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, toRead(V:K, Od:K, Vol:Bool), SM, Fl:K))
-          ListItem(memProto(Count', fence(seq_cst), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+          ListItem(memProto(Count', fence(seq_cst), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, toReadWrite(V:Set,
                                   ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K)),
-           pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:Loc)
+           pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                   memProto(Count:Int, toReadWrite(V:Set,
                                 ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K))
-               ListItem(memProto(Count', readSeqFence, .Map, false)), .K, S, Pre, Re, Loc:Loc)
+               ListItem(memProto(Count', readSeqFence, .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, L:List ListItem(
                      memProto(Count:Int, toReadWrite(V:Set, .List, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                           toReadWrite(V:Set, .List, Vol:Bool), SM:Map, Fl:K))
-             ListItem(memProto(Count', fence(seq_cst),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+             ListItem(memProto(Count', fence(seq_cst),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(
                      memProto(Count:Int, toReadWrite(
                              V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K)),
-             pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, fence(seq_cst)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int,
                           toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), SM:Map, Fl:K))
-             ListItem(memProto(Count', fence(seq_cst),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+             ListItem(memProto(Count', fence(seq_cst),.Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //if the seq_cst fence op is the first in the block
     rule getMemOps(Bn:Int, .List, pairResult(
-                Count:Int, fence(seq_cst)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:Loc)
+                Count:Int, fence(seq_cst)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, readSeqFence, .Map, false)),
-                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(
-               Count:Int, fence(seq_cst)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:Loc)
+               Count:Int, fence(seq_cst)), S:List, toRead(V:K, Od:K, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(seq_cst),.Map, false)),
-                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toRead(V:K, Od:K, Vol:Bool), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(
                 Count:Int, fence(seq_cst)), S:List,
-                        toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:Loc)
+                        toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, readSeqFence, .Map, false)),
-                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(
                Count:Int, fence(seq_cst)), S:List,
-                        toReadWrite(V:Set, .List, Vol:Bool), Re:K, Loc:Loc)
+                        toReadWrite(V:Set, .List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(seq_cst),.Map, false)),
-                        .K, S, toReadWrite(V:Set, .List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, .List, Vol:Bool), Re, Loc:K)
     rule getMemOps(Bn:Int, .List, pairResult(
                Count:Int, fence(seq_cst)), S:List,
-                        toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:Loc)
+                        toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, fence(seq_cst),.Map, false)),
-                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:Loc)
+                        .K, S, toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //if there is a store op
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(release), SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, releaseFence, SM, Fl:K))
-        ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+        ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(release), SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, fence(release), SM, Fl:K))
-         ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+         ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(release), SM:Map, Fl:K)),
            pairResult(Count':Int, toReadWrite(V:Set,
-                         ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                         ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int, releaseFence, SM:Map, Fl:K))
         ListItem(memProto(Count', toReadWrite(V:Set,
-                     ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                     ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(release), SM:Map, Fl:K)),
              pairResult(Count':Int, toReadWrite(V:Set,
-                         .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                         .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, fence(release), SM:Map, Fl:K))
       ListItem(memProto(Count', toReadWrite(V:Set,
-                      .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+                      .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(release), SM:Map, Fl:K)),
              pairResult(Count':Int, toReadWrite(V:Set,
-                        ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                        ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, fence(release), SM:Map, Fl:K))
       ListItem(memProto(Count', toReadWrite(V:Set,
-                      ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+                      ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     //if the store op is the first in the block
     rule getMemOps(Bn:Int, .List, pairResult( Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-                S:List, fence(release), Re:K, Loc:Loc)
+                S:List, fence(release), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool), .Map, false)),
-                        .K, S, fence(release), releaseFence, Loc:Loc)
+                        .K, S, fence(release), releaseFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-             S:List, fence(release), Re:K, Loc:Loc)
+             S:List, fence(release), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool),.Map, false)),
-                        .K, S, fence(release), Re, Loc:Loc)
+                        .K, S, fence(release), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                          toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                   S:List, fence(release), Re:K, Loc:Loc)
+                   S:List, fence(release), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                              toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), .Map, false)),
-                        .K, S, fence(release), releaseFence, Loc:Loc)
+                        .K, S, fence(release), releaseFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                   toReadWrite(V:Set, .List, Vol:Bool)),
-                 S:List, fence(release), Re:K, Loc:Loc)
+                 S:List, fence(release), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                              toReadWrite(V:Set, .List, Vol:Bool),.Map, false)),
-                        .K, S, fence(release), Re, Loc:Loc)
+                        .K, S, fence(release), Re, Loc:K)
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                   toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                 S:List, fence(release), Re:K, Loc:Loc)
+                 S:List, fence(release), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                              toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool),.Map, false)),
-                        .K, S, fence(release), Re, Loc:Loc)
+                        .K, S, fence(release), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
    //deal with case when fence is a acq_rel in the store op
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(acq_rel), SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, writeRWFence, SM, Fl:K))
-     ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+     ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(acq_rel), SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, fence(acq_rel), SM, Fl:K))
-          ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+          ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(acq_rel), SM:Map, Fl:K)),
            pairResult(Count':Int, toReadWrite(V:Set,
-                          ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                          ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int, writeRWFence, SM:Map, Fl:K))
                ListItem(memProto(Count', toReadWrite(V:Set,
-                         ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                         ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(acq_rel), SM:Map, Fl:K)),
-             pairResult(Count':Int, toReadWrite(V:Set, .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+             pairResult(Count':Int, toReadWrite(V:Set, .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, fence(acq_rel), SM:Map, Fl:K))
              ListItem(memProto(Count',
-                  toReadWrite(V:Set, .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+                  toReadWrite(V:Set, .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(acq_rel), SM:Map, Fl:K)),
              pairResult(Count':Int, toReadWrite(V:Set,
-                     ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                     ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, fence(acq_rel), SM:Map, Fl:K))
              ListItem(memProto(Count', toReadWrite(V:Set,
-               ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+               ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     //if the store op is the first in the block of a acq_rel fence
     rule getMemOps(Bn:Int, .List, pairResult( Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-                S:List, fence(acq_rel), Re:K, Loc:Loc)
+                S:List, fence(acq_rel), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool), .Map, false)),
-                        .K, S, fence(acq_rel), writeRWFence, Loc:Loc)
+                        .K, S, fence(acq_rel), writeRWFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-             S:List, fence(acq_rel), Re:K, Loc:Loc)
+             S:List, fence(acq_rel), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool),.Map, false)),
-                        .K, S, fence(acq_rel), Re, Loc:Loc)
+                        .K, S, fence(acq_rel), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                      toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                   S:List, fence(acq_rel), Re:K, Loc:Loc)
+                   S:List, fence(acq_rel), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                         toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), .Map, false)),
-                        .K, S, fence(acq_rel), writeRWFence, Loc:Loc)
+                        .K, S, fence(acq_rel), writeRWFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                    toReadWrite(V:Set, .List, Vol:Bool)),
-                 S:List, fence(acq_rel), Re:K, Loc:Loc)
+                 S:List, fence(acq_rel), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                       toReadWrite(V:Set, .List, Vol:Bool),.Map, false)),
-                        .K, S, fence(acq_rel), Re, Loc:Loc)
+                        .K, S, fence(acq_rel), Re, Loc:K)
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                    toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                 S:List, fence(acq_rel), Re:K, Loc:Loc)
+                 S:List, fence(acq_rel), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                       toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool),.Map, false)),
-                        .K, S, fence(acq_rel), Re, Loc:Loc)
+                        .K, S, fence(acq_rel), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //deal with case when fence is a seq_cst in the store op
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(seq_cst), SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, writeSeqFence, SM, Fl:K))
-         ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+         ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(seq_cst), SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, fence(seq_cst), SM, Fl:K))
-        ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+        ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(seq_cst), SM:Map, Fl:K)),
            pairResult(Count':Int, toReadWrite(V:Set,
-                    ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                    ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int, writeSeqFence, SM:Map, Fl:K))
                ListItem(memProto(Count', toReadWrite(V:Set,
-                     ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                     ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(seq_cst), SM:Map, Fl:K)),
              pairResult(Count':Int, toReadWrite(V:Set,
-                          .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                          .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, fence(seq_cst), SM:Map, Fl:K))
              ListItem(memProto(Count', toReadWrite(V:Set,
-                         .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+                         .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, fence(seq_cst), SM:Map, Fl:K)),
              pairResult(Count':Int, toReadWrite(V:Set,
-                          ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                          ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, fence(seq_cst), SM:Map, Fl:K))
              ListItem(memProto(Count', toReadWrite(V:Set,
-                         ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+                         ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     //if the store op is the first in the block of a seq_cst fence
     rule getMemOps(Bn:Int, .List, pairResult(
                            Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-                S:List, fence(seq_cst), Re:K, Loc:Loc)
+                S:List, fence(seq_cst), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(
                               Count, toWrite(V:K, Od:K, Vol:Bool), .Map, false)),
-                        .K, S, fence(seq_cst), writeSeqFence, Loc:Loc)
+                        .K, S, fence(seq_cst), writeSeqFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(
                        Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-             S:List, fence(seq_cst), Re:K, Loc:Loc)
+             S:List, fence(seq_cst), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(
                            Count, toWrite(V:K, Od:K, Vol:Bool),.Map, false)),
-                        .K, S, fence(seq_cst), Re, Loc:Loc)
+                        .K, S, fence(seq_cst), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                     toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                   S:List, fence(seq_cst), Re:K, Loc:Loc)
+                   S:List, fence(seq_cst), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                         toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), .Map, false)),
-                        .K, S, fence(seq_cst), writeSeqFence, Loc:Loc)
+                        .K, S, fence(seq_cst), writeSeqFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                   toReadWrite(V:Set, .List, Vol:Bool)),
-                 S:List, fence(seq_cst), Re:K, Loc:Loc)
+                 S:List, fence(seq_cst), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                        toReadWrite(V:Set, .List, Vol:Bool),.Map, false)),
-                        .K, S, fence(seq_cst), Re, Loc:Loc)
+                        .K, S, fence(seq_cst), Re, Loc:K)
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                   toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                 S:List, fence(seq_cst), Re:K, Loc:Loc)
+                 S:List, fence(seq_cst), Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                        toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool),.Map, false)),
-                        .K, S, fence(seq_cst), Re, Loc:Loc)
+                        .K, S, fence(seq_cst), Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
 
     //deal with case when fence is a readRWFence
     // (a acq_rel fence that has previously been detected with a pre-load op) in the store op
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readRWFence, SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, readWriteFence, SM, Fl:K))
-          ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+          ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readRWFence, SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, readRWFence, SM, Fl:K))
-      ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+      ListItem(memProto(Count', toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readRWFence, SM:Map, Fl:K)),
            pairResult(Count':Int, toReadWrite(V:Set,
-                    ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                    ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int, readWriteFence, SM:Map, Fl:K))
         ListItem(memProto(Count', toReadWrite(V:Set,
-                     ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                     ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readRWFence, SM:Map, Fl:K)),
              pairResult(Count':Int, toReadWrite(V:Set,
-                        .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                        .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, readRWFence, SM:Map, Fl:K))
       ListItem(memProto(Count', toReadWrite(V:Set,
-                   .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+                   .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readRWFence, SM:Map, Fl:K)),
              pairResult(Count':Int, toReadWrite(V:Set,
-                        ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                        ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, readRWFence, SM:Map, Fl:K))
       ListItem(memProto(Count', toReadWrite(V:Set,
-                   ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+                   ListItem(Od:K) OL:List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     //if the store op is the first in the block of a readRWFence
     // (a acq_rel fence that has previously been detected with a pre-load op) 
     rule getMemOps(Bn:Int, .List, pairResult( Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-                S:List, readRWFence, Re:K, Loc:Loc)
+                S:List, readRWFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool), .Map, false)),
-                        .K, S, readRWFence, readWriteFence, Loc:Loc)
+                        .K, S, readRWFence, readWriteFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-             S:List, readRWFence, Re:K, Loc:Loc)
+             S:List, readRWFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool),.Map, false)),
-                        .K, S, readRWFence, Re, Loc:Loc)
+                        .K, S, readRWFence, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                    toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                   S:List, readRWFence, Re:K, Loc:Loc)
+                   S:List, readRWFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                    toReadWrite(V:Set,ListItem(Od:K) OL:List, Vol:Bool), .Map, false)),
-                        .K, S, readRWFence, readWriteFence, Loc:Loc)
+                        .K, S, readRWFence, readWriteFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                       toReadWrite(V:Set, .List, Vol:Bool)),
-                 S:List, readRWFence, Re:K, Loc:Loc)
+                 S:List, readRWFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                       toReadWrite(V:Set, .List, Vol:Bool),.Map, false)),
-                        .K, S, readRWFence, Re, Loc:Loc)
+                        .K, S, readRWFence, Re, Loc:K)
 
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                       toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                 S:List, readRWFence, Re:K, Loc:Loc)
+                 S:List, readRWFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                       toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool),.Map, false)),
-                        .K, S, readRWFence, Re, Loc:Loc)
+                        .K, S, readRWFence, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     //deal with case when fence is a readSeqFence
     // (a seq_cst fence that has previously been detected with a pre-load op) in the store op
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readSeqFence, SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
              => getMemOps(Bn:Int, L ListItem(memProto(Count, seqFence, SM, Fl:K))
                          ListItem(memProto(Count',
-                 toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                 toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readSeqFence, SM:Map, Fl:K)),
-              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              pairResult(Count':Int, toWrite(V:K, Od:K, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count, readSeqFence, SM, Fl:K))
                  ListItem(memProto(Count',
-                 toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                 toWrite(V:K, Od:K, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readSeqFence, SM:Map, Fl:K)),
            pairResult(Count':Int, toReadWrite(V:Set,
-                   ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+                   ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(memProto(Count:Int, seqFence, SM:Map, Fl:K))
                ListItem(memProto(Count', toReadWrite(V:Set,
-                   ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                   ListItem(Od:K) OL:List, Vol:Bool), .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K acquire
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readSeqFence, SM:Map, Fl:K)),
              pairResult(Count':Int,
-              toReadWrite(V:Set, .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              toReadWrite(V:Set, .List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, readSeqFence, SM:Map, Fl:K))
              ListItem(memProto(Count', 
-               toReadWrite(V:Set, .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:Loc)
+               toReadWrite(V:Set, .List, Vol:Bool),.Map, false)), .K, S, Pre, Re, Loc:K)
     rule getMemOps(Bn:Int, L:List ListItem(memProto(Count:Int, readSeqFence, SM:Map, Fl:K)),
              pairResult(Count':Int,
-              toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:Loc)
+              toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)), S:List, Pre:K, Re:K, Loc:K)
                  => getMemOps(Bn:Int, L ListItem(
                             memProto(Count:Int, readSeqFence, SM:Map, Fl:K))
              ListItem(memProto(Count', 
                toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool),
-                                   .Map, false)), .K, S, Pre, Re, Loc:Loc)
+                                   .Map, false)), .K, S, Pre, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K acquire
     //if the store op is the first in the block of a readSeqFence
     // (a seq_cst fence that has previously been detected with a pre-load op) 
     rule getMemOps(Bn:Int, .List, pairResult( Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-                S:List, readSeqFence, Re:K, Loc:Loc)
+                S:List, readSeqFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool), .Map, false)),
-                        .K, S, readSeqFence, seqFence, Loc:Loc)
+                        .K, S, readSeqFence, seqFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int, toWrite(V:K, Od:K, Vol:Bool)),
-             S:List, readSeqFence, Re:K, Loc:Loc)
+             S:List, readSeqFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count, toWrite(V:K, Od:K, Vol:Bool),.Map, false)),
-                        .K, S, readSeqFence, Re, Loc:Loc)
+                        .K, S, readSeqFence, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                      toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                   S:List, readSeqFence, Re:K, Loc:Loc)
+                   S:List, readSeqFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                     toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool), .Map, false)),
-                        .K, S, readSeqFence, seqFence, Loc:Loc)
+                        .K, S, readSeqFence, seqFence, Loc:K)
          requires Od ==K unordered orBool Od ==K monotonic
                      orBool Od ==K release
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                    toReadWrite(V:Set, .List, Vol:Bool)),
-                 S:List, readSeqFence, Re:K, Loc:Loc)
+                 S:List, readSeqFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                             toReadWrite(V:Set, .List, Vol:Bool),.Map, false)),
-                        .K, S, readSeqFence, Re, Loc:Loc)
+                        .K, S, readSeqFence, Re, Loc:K)
     rule getMemOps(Bn:Int, .List, pairResult(Count:Int,
                    toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool)),
-                 S:List, readSeqFence, Re:K, Loc:Loc)
+                 S:List, readSeqFence, Re:K, Loc:K)
                  => getMemOps(Bn:Int, ListItem(memProto(Count,
                toReadWrite(V:Set, ListItem(Od:K) OL:List, Vol:Bool),.Map, false)),
-                        .K, S, readSeqFence, Re, Loc:Loc)
+                        .K, S, readSeqFence, Re, Loc:K)
          requires Od =/=K unordered andBool Od =/=K monotonic
                      andBool Od =/=K release
     rule getMemOps(Bn:Int, L:List,
-                  pairResult(Count:Int, Op:K), S:List, Pre:K, Re:K, Loc:Loc)
+                  pairResult(Count:Int, Op:K), S:List, Pre:K, Re:K, Loc:K)
            => getMemOps(Bn, L ListItem(memProto(Count, Op,.Map, false)),
-                   .K, S, Pre, Re, Loc:Loc) [owise]
+                   .K, S, Pre, Re, Loc:K) [owise]
 
     //end of getMemOps
-    syntax List ::= formMemList(Int, List, Loc) [function]
+    syntax K ::= getCoreVaLog(K) [function]
+    rule getCoreVaLog(value(A:K, B:K)) => B
+    rule getCoreVaLog(.K) => .K
+
+    syntax List ::= formMemList(Int, List, K) [function]
                   | formMemListAux(K) [function]
 
-    syntax Map ::= formMemListWithMem(Int, K, Int, List, Loc,Set, Map) [function]
+    syntax Map ::= formMemListWithMem(Int, K, Int, List, K,Set, Map) [function]
                     //block-id,block-name, father, inst-list, va-arg-loc,
                     //Set of vars, previous-map
-                  | formMemListWithMemAux(Int, K, Int, List, Loc, Set, Map, K) [function]
+                  | formMemListWithMemAux(Int, K, Int, List, K, Set, Map, K) [function]
                   | formMemListWithMemAux1(Int, K, Int, Set, Map, K, K) [function]
 
-    rule formMemListWithMem(Bn:Int, Name:K, Fa:Int, Insts:List, Va:Loc, S:Set, M:Map)
+    rule formMemListWithMem(Bn:Int, Name:K, Fa:Int, Insts:List, Va:K, S:Set, M:Map)
           => formMemListWithMemAux(Bn, Name, Fa, Insts, Va, S, M,
                      findFatherMemProto(Fa, .K, M))
     rule formMemListWithMemAux(Bn:Int, Name:K, Fa:Int, Insts:List,
-           Va:Loc, S:Set, M:Map, pairResult(F:K, Op:K))
+           Va:K, S:Set, M:Map, pairResult(F:K, Op:K))
          => formMemListWithMemAux1(Bn, Name, Fa, S, M, F,
                 getMemOps(Bn, .List, .K, Insts, Op, .K, Va))
     rule formMemListWithMemAux(Bn:Int, Name:K, Fa:Int, Insts:List,
-           Va:Loc, S:Set, M:Map, none)
+           Va:K, S:Set, M:Map, none)
          => formMemListWithMemAux1(Bn, Name, Fa, S, M, none,
                 getMemOps(Bn, .List, .K, Insts, none, .K, Va))
     rule formMemListWithMemAux1(Bn:Int, Name:K, Fa:Int, S:Set, M:Map, F:K,
@@ -977,7 +1020,7 @@ module LLVM-HELPERS
               pairResult(pairResult(Bn':Int, Op:K) , L:List))
           => addNextBlockMemOp(M, Bn', Bn, Op)[Bn <- runBlock(Bn, Name, Fa,L, S, .Set)]
 
-    rule formMemList(Bn:Int, Insts:List, Loc:Loc)
+    rule formMemList(Bn:Int, Insts:List, Loc:K)
           => formMemListAux(getMemOps(Bn, .List, .K, Insts, none, .K, Loc))
     rule formMemListAux(pairResultList(A:K, R:List)) => R
 
@@ -4439,6 +4482,12 @@ module LLVM-HELPERS
     rule isAvailable(theVAArg(Ty:K, V:KResult, T2:K)) => true
     rule isAvailable(A:K) => false [owise]
 
+    syntax Bool ::= hasAvailables(List) [function]
+    rule hasAvailables(.List) => false
+    rule hasAvailables(ListItem(dynInstInfo(BN:Int,
+                        IN:Int, Inst:K, T:K)) L:List)
+         => isAvailable(Inst) orBool hasAvailables(L)
+
     syntax Bool ::= isFloatOp(K) [function]
     rule isFloatOp(A:K) => true
         requires getKLabel(A) ==KLabel 'theFAdd
@@ -4534,7 +4583,7 @@ module LLVM-HELPERS
                    Cur:Int, .K, .K, M:Map, RM:Map, Rev:Map)
              => updateVarInSpecTree(SM, Cur, A, B, M, RM, Rev)
    rule updateVarInSpecTree(SM:Map, Cur:Int, Bn:Int, runBlock(
-                  Bn':Int, Name':K, Fa':Int, L':List, Vars':Set, Cs':Set),
+                  Bn':Int, Name':K, Fa':K, L':List, Vars':Set, Cs':Set),
              M:Map, RM:Map, Rev:Map)
          => (Bn |-> runBlock(Bn', Name', Fa',
                updateVarInList(Cur, Bn, L', M, RM, Rev), Vars', Cs'))
@@ -4546,6 +4595,7 @@ module LLVM-HELPERS
            memProto(In:Int, Inst:K, X:Map, Y:Bool)) L:List, M:Map, RM:Map, Rev:Map)
         => ListItem(memProto(In, updateVarInTerm(Cur, Bn, Inst, M, RM, Rev), X, Y))
                updateVarInList(Cur, Bn, L, M, RM, Rev)
+
    rule updateVarInList(Cur:Int, Pre:Int, ListItem(dynInstInfo(Bn:Int,
                      In:Int, Inst:K, T:K)) L:List, M:Map, RM:Map, Rev:Map)
         => ListItem(dynInstInfo(Bn:Int, In:Int,
@@ -4599,16 +4649,12 @@ module LLVM-HELPERS
                 M:Map, RM:Map, Rev:Map) =>
              updateVarInVar(Cur, C, name(localVar, S:String),
                 M:Map, RM, Rev:Map)
-   rule updateVarInTerm(Cur:Int, C:Int, X:K, M:Map, RM:Map, Rev:Map) => X
-        requires notBool isLocalVariable(X)
-
    rule updateVarInTerm(Cur:Int, C:Int, phiResult(F:Int,
                     name(localVar, S:String)), M:Map, RM:Map, Rev:Map)
           => phiResult(F, updateVarInVar(Cur, F, name(localVar, S:String), M, RM, Rev))
    rule updateVarInTerm(Cur:Int, C:Int, phiResult(F:Int,
                     X:K), M:Map, RM:Map, Rev:Map) => phiResult(F, X)
         requires notBool isLocalVariable(X)
-
    rule updateVarInTerm(Cur:Int, C:Int, toRead(V:K, T:K, Vol:Bool), M:Map, RM:Map, Rev:Map)
            => toRead(updateVarInTerm(Cur, C, V, M, RM, Rev), T, Vol:Bool)
    rule updateVarInTerm(Cur:Int, C:Int, toWrite(V:K, T:K, Vol:Bool), M:Map, RM:Map, Rev:Map)
@@ -4618,7 +4664,7 @@ module LLVM-HELPERS
    rule updateVarInTerm(Cur:Int, C:Int, noAssign(In:K), M:Map, RM:Map, Rev:Map)
         => noAssign(updateVarInTerm(Cur, C, In, M, RM, Rev))
    rule updateVarInTerm(Cur:Int, C:Int, assign(X:K, Inst:K), M:Map, RM:Map, Rev:Map)
-        => assign(X, updateVarInTerm(Cur, C, Inst, removeEntry(M, X), RM, Rev))
+        => assign(X, updateVarInTerm(Cur, C, Inst, removeEntry(M, X), RM, Rev)) 
    rule updateVarInTerm(Cur:Int, C:Int, instruction(In:K,
                   Attrs:Set, Meta:K), M:Map, RM:Map, Rev:Map)
         => instruction(updateVarInTerm(Cur, C, In, M, RM, Rev), Attrs, Meta)
@@ -5614,14 +5660,19 @@ module LLVM-HELPERS
     rule updateMemWithAtomic(M:Map, B:Int, region(ListItem(X:K) L:List, A:K))
            => updateMemWithAtomic(M[B <- X], B +Int 1, region(L, A))
 
+    syntax Bool ::= isAllChunckWritten(Map, Int, Int) [function]
+    rule isAllChunckWritten(M:Map, Size:Int, Size) => true
+    rule isAllChunckWritten((I |-> A:K) M:Map, I:Int, Size:Int)
+          => isAllChunckWritten(M, I +Int 1, Size)
+         requires I <Int Size
+    rule isAllChunckWritten(M:Map, I:Int, Size:Int) => false
+         requires I <Int Size andBool notBool (I in keys(M))
+
     syntax Bool ::= isChunckWritten(Map, Int, Int) [function]
-    rule isChunckWritten(M:Map, Size:Int, Size:Int) => false
-    rule isChunckWritten((I |-> A:K) M:Map, I:Int, Size:Int)
-           => isChunckWritten(M, I +Int 1, Size)
+    rule isChunckWritten(M:Map, I:Int, Size:Int)
+              => isAllChunckWritten(M:Map, I, Size)
          requires I <Int Size
-    rule isChunckWritten(M:Map, I:Int, Size:Int) => true
-         requires I <Int Size
-         [owise]
+    rule isChunckWritten(M:Map, I:Int, Size:Int) => false [owise]
 
     syntax List ::= getMemWithAtomic(Map, Int, Int, Int) [function]
     rule getMemWithAtomic(M:Map, B:Int, Size:Int, Size:Int) => .List
@@ -6439,6 +6490,7 @@ module LLVM-HELPERS
                                     deleteExpInFloat(floatToMid(V)))
     rule formalizeFloat(T:K, V:HexConstant) => binToFloat(T, hexToBin(T, V))
     rule formalizeFloat(T:K, zeroinitializer) => posZero
+         requires isFloatType(T)
     rule formalizeFloat(T:K, V:K) => V [owise]
 
     syntax KItem ::= formalizeFloats(K, K) [function]
@@ -6455,7 +6507,7 @@ module LLVM-HELPERS
             => val(operand(T', formalizeFloat(T, A))),
                         formalizeFloats(vectorTypeValue(T:K, I:Int), Es)
     rule formalizeFloats(vectorTypeValue(T:K, I:Int), zeroinitializer)
-               => vector(copyOfElemList(T, posZero, I))
+               => putZeroInitializer(vectorTypeValue(T:K, I:Int))
     rule formalizeFloats(T:K, A:K) => formalizeFloat(T, A) [owise]
 
     syntax KItem ::= formalizeAllFloats(K, K) [function]
@@ -6478,7 +6530,7 @@ module LLVM-HELPERS
             => val(operand(T', formalizeAllFloats(T, A))),
                         formalizeAllFloats(arrayTypeValue(T:K, I:Int), Es)
     rule formalizeAllFloats(T:K, zeroinitializer)
-            => formalizeAllFloats(T, dealWithZeroInitializer(T))
+            => formalizeAllFloats(T, putZeroInitializer(T))
          requires isArrayType(T) orBool isStructType(T)
     rule formalizeAllFloats(structTypeValue(T:K), constantStruct(A:K))
             => constantStruct(formalizeAllFloatsAux(T, A))
@@ -7378,5 +7430,65 @@ module LLVM-HELPERS
          requires notBool A in keys(M) andBool A =/=K B
     rule hasChainWait((A |-> C:Int) M:Map, A:Int, B:Int)
              => hasChainWait(M, C, B)
+
+    //dealing with stack info,
+    syntax List ::= removeStackObject(List, K) [function]
+    rule removeStackObject(.List, A:K) => .List
+    rule removeStackObject(ListItem(stackObject(value(A, B:K),
+                  S:Int, Al:Int, Ad:Int, Ran:K)) L:List, A:K) => L
+    rule removeStackObject(ListItem(stackObject(value(A':K, B:K),
+                  S:Int, Al:Int, Ad:Int, Ran:K)) L:List, A:K)
+          => ListItem(stackObject(value(A':K, B:K),
+                  S:Int, Al:Int, Ad:Int, Ran:K)) removeStackObject(L, A)
+         requires A =/=K A'
+
+    syntax Bool ::= isConstantStack(List, Int, Int) [function]
+    rule isConstantStack(.List, B:Int, S:Int) => false
+    rule isConstantStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, constant)) L:List, B:Int, S:Int) => true
+         requires B >=Int Left andBool B +Int S <=Int Right
+    rule isConstantStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int) => false
+         requires B >=Int Left andBool B +Int S <=Int Right andBool Ran =/=K constant
+    rule isConstantStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int)
+             => isConstantStack(L, B, S)
+         requires notBool (B >=Int Left andBool B +Int S <=Int Right)
+
+    syntax Bool ::= isNormalStack(List, Int, Int) [function]
+    rule isNormalStack(.List, B:Int, S:Int) => false
+    rule isNormalStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, stack)) L:List, B:Int, S:Int) => true
+         requires B >=Int Left andBool B +Int S <=Int Right
+    rule isNormalStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int) => false
+         requires B >=Int Left andBool B +Int S <=Int Right andBool Ran =/=K stack
+    rule isNormalStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int)
+             => isNormalStack(L, B, S)
+         requires notBool (B >=Int Left andBool B +Int S <=Int Right)
+
+    syntax Bool ::= matchAddSpaceStack(List, Int, Int, Int) [function]
+    rule matchAddSpaceStack(.List, B:Int, S:Int, Ad:Int) => false
+    rule matchAddSpaceStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int, Ad) => true
+         requires B >=Int Left andBool B +Int S <=Int Right
+    rule matchAddSpaceStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int, Ad':Int) => false
+         requires B >=Int Left andBool B +Int S <=Int Right andBool Ad =/=K Ad'
+    rule matchAddSpaceStack(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int, Ad':Int)
+           => matchAddSpaceStack(L, B, S, Ad')
+         requires notBool (B >=Int Left andBool B +Int S <=Int Right)
+
+    syntax Bool ::= isStackInChunckRange(List, Int, Int) [function]
+    rule isStackInChunckRange(.List, B:Int, S:Int) => false
+    rule isStackInChunckRange(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int) => true
+         requires B >=Int Left andBool B +Int S <=Int Right
+    rule isStackInChunckRange(ListItem(stackObject(value(Left:Int, Right:Int),
+            Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int)
+             => isStackInChunckRange(L, B, S)
+         requires notBool (B >=Int Left andBool B +Int S <=Int Right)
 
 endmodule
