@@ -842,6 +842,8 @@ module LLVM-ABSTRACTSYNTAX
     syntax KItem ::= arg(Set, K, K) [strict(2)]// Modifiers, Type, Value/Name
     syntax KResult ::= typedArg(Set, K, K)
     rule arg(S:Set, T:KResult, A:K) => typedArg(S, T, A)
+    syntax KItem ::= constArg(Set, K, K) [strict(2,3)]
+    rule constArg(S:Set, A:KResult, B:KResult) => typedArg(S, A, B)
 
     //vector ops
     syntax KItem ::= elemExtract(K, K, K, K) [strict(2, 4)]

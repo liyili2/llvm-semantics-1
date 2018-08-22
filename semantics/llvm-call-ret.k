@@ -381,8 +381,9 @@ module LLVM-CALL-RET
             => stacticAssign(Formal, Arg)
             ~> bind(Args, Formals)
         ...</k>
-    rule
-        <k> bind(.ElemList, .ElemList) => .K ...</k>
+
+    rule bind(.ElemList, .ElemList) => .K 
+    rule bind(.ElemList, (valValue(vaListType),.ElemList)) => .K 
 
     rule bind((valValue(typedArg(S:Set, T:K, Arg:K)), Args:ElemList),
                (valValue(vaListType),Formals:ElemList))
@@ -449,7 +450,7 @@ module LLVM-CALL-RET
         <stackList> SL:List => removeLocalStack(Base, SL) </stackList>
         <stackInfo> SI:List => removeStackObject(SI, Base) </stackInfo>
 
-    rule initializer(void, V:K) ~> clearVoid => .K
+    rule initializer(void, V:K) ~> clearVoid => undef
     rule initializer(T:K, V:KResult) ~> clearVoid => V
          when T =/=K void
 

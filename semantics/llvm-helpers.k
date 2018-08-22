@@ -1014,10 +1014,10 @@ module LLVM-HELPERS
          => formMemListWithMemAux1(Bn, Name, Fa, S, M, none,
                 getMemOps(Bn, .List, .K, Insts, none, .K, Va))
     rule formMemListWithMemAux1(Bn:Int, Name:K, Fa:Int, S:Set, M:Map, F:K,
-              pairResult(none, L:List))
+              pairResultList(none, L:List))
           => M[Bn <- runBlock(Bn, Name, Fa,L, S, .Set)]
     rule formMemListWithMemAux1(Bn:Int, Name:K, Fa:Int, S:Set, M:Map, F:Int,
-              pairResult(pairResult(Bn':Int, Op:K) , L:List))
+              pairResultList(pairResult(Bn':Int, Op:K) , L:List))
           => addNextBlockMemOp(M, Bn', Bn, Op)[Bn <- runBlock(Bn, Name, Fa,L, S, .Set)]
 
     rule formMemList(Bn:Int, Insts:List, Loc:K)
@@ -3777,6 +3777,8 @@ module LLVM-HELPERS
             => val(typeOperand(T, V)),getArgsInFunction(E)
     rule getArgsInFunction(valValue(typedArg(S:Set, T:K, V:K)), E:ElemList)
             => valValue(typeOperandResult(T, V)),getArgsInFunction(E)
+    rule getArgsInFunction(valValue(vaListType), E:ElemList)
+                 => getArgsInFunction(E)
 
     syntax Set ::= formArgSet(ElemList)      [function]
     rule formArgSet(.ElemList) => .Set
@@ -4411,36 +4413,51 @@ module LLVM-HELPERS
     syntax Bool ::= isAvailable(K) [function]
                   | isAvailableInElemList(ElemList) [function]
                   | isAvailableInGepTerm(K) [function]
+                  | isAvailableVar(K) [function]
 
    rule isAvailableInGepTerm(vector(Es:ElemList)) => isAvailableInElemList(Es)
-   rule isAvailableInGepTerm(X:K) => isAvailable(X) [owise]
+   rule isAvailableInGepTerm(X:K) => isAvailableVar(X) [owise]
 
    rule isAvailableInElemList(.ElemList) => true
    rule isAvailableInElemList(val(arg(S:Set, T:K, X:K)),Es:ElemList)
-                => isAvailable(X) andBool isAvailableInElemList(Es)
+                => isAvailableVar(X) andBool isAvailableInElemList(Es)
    rule isAvailableInElemList(val(operand(T:K, X:K)),Es:ElemList)
-                => isAvailable(X) andBool isAvailableInElemList(Es)
+                => isAvailableVar(X) andBool isAvailableInElemList(Es)
    rule isAvailableInElemList(val(gepOperand(A:K, T:K, X:K)),Es:ElemList)
-                => isAvailable(X) andBool isAvailableInElemList(Es)
+                => isAvailableVar(X) andBool isAvailableInElemList(Es)
+
+    rule isAvailableVar(operand(A:K, B:K)) => isAvailableVar(B)
+    rule isAvailableVar(A:K) => false
+         requires isLocalVariable(A)
+    rule isAvailableVar(A:K) => true [owise]
 
     rule isAvailable(assign(X:K, Y:K)) => isAvailable(Y)
     rule isAvailable(noAssign(X:K)) => isAvailable(X)
     rule isAvailable(instruction(A:K, B:Set, C:K)) => isAvailable(A)
-    rule isAvailable(Op:KLabel(Ty:K,, V1:KResult,, V2:KResult)) => true
-        requires isIntOp(Op:KLabel(Ty:K,, V1:KResult,, V2:KResult))
-    rule isAvailable(phiResult(F:Int, V:KResult)) => true
-    rule isAvailable(Op:KLabel(Ty:K,, V1:KResult,, V2:KResult)) => true
-        requires isFloatOp(Op:KLabel(Ty:K,, V1:KResult,, V2:KResult))
-    rule isAvailable(fCmp(Op:K, T:K, V1:KResult, V2:KResult)) => true
-    rule isAvailable(iCmp(Op:K, T:K, V1:KResult, V2:KResult)) => true
-    rule isAvailable(extractValue(V1:KResult, L:List)) => true
-    rule isAvailable(insertValue(T1:K, V1:KResult, V2:KResult, L:List)) => true
-    rule isAvailable(elemExtract(T1:K, V1:KResult, T2:K, V2:KResult)) => true
-    rule isAvailable(insertElem(T1:K, V1:KResult,
-                    T2:K, V2:KResult, T3:K, V3:KResult)) => true
-    rule isAvailable(shuffleVector(T1:K, V1:KResult,
-                       V2:KResult, T3:K, V3:KResult)) => true
-    rule isAvailable(Op:KLabel(T:K,, V:KResult,, T':K)) => true
+    rule isAvailable(Op:KLabel(Ty:K,, V1:K,, V2:K))
+                 => isAvailableVar(V1) andBool isAvailableVar(V2)
+        requires isIntOp(Op:KLabel(Ty:K,, V1,, V2))
+    rule isAvailable(phiResult(F:Int, V:K)) => isAvailableVar(V)
+    rule isAvailable(Op:KLabel(Ty:K,, V1:K,, V2:K))
+                    => isAvailableVar(V1) andBool isAvailableVar(V2)
+        requires isFloatOp(Op:KLabel(Ty:K,, V1,, V2))
+    rule isAvailable(fCmp(Op:K, T:K, V1:K, V2:K))
+                   => isAvailableVar(V1) andBool isAvailableVar(V2)
+    rule isAvailable(iCmp(Op:K, T:K, V1:K, V2:K))
+                   => isAvailableVar(V1) andBool isAvailableVar(V2)
+    rule isAvailable(extractValue(V1:K, L:List))
+                 => isAvailableVar(V1)
+    rule isAvailable(insertValue(T1:K, V1:K, V2:K, L:List))
+                 => isAvailableVar(V1) andBool isAvailableVar(V2)
+    rule isAvailable(elemExtract(T1:K, V1:K, T2:K, V2:K))
+                 => isAvailableVar(V1) andBool isAvailableVar(V2)
+    rule isAvailable(insertElem(T1:K, V1:K,
+                    T2:K, V2:K, T3:K, V3:K))
+                 => isAvailableVar(V1) andBool isAvailableVar(V2) andBool isAvailableVar(V3)
+    rule isAvailable(shuffleVector(T1:K, V1:K,
+                       V2:K, T3:K, V3:K))
+                 => isAvailableVar(V1) andBool isAvailableVar(V2) andBool isAvailableVar(V3)
+    rule isAvailable(Op:KLabel(T:K,, V:K,, T':K)) => isAvailableVar(V)
          requires Op ==KLabel 'theSIToFP orBool Op ==KLabel 'theUIToFP
                orBool Op ==KLabel 'theFpToSI orBool Op ==KLabel 'theFpToUI
                orBool Op ==KLabel 'theFPExt orBool Op ==KLabel 'theFPTrunc
@@ -4449,22 +4466,21 @@ module LLVM-HELPERS
                orBool Op ==KLabel 'thePtrToInt orBool Op ==KLabel 'theAddrSpaceCast
                orBool Op ==KLabel 'theBitCast
     rule isAvailable(unconditional(V:K)) => true
-    rule isAvailable(conditional(A:K, V1:K, V2:K)) => isAvailable(A)
-    rule isAvailable(operand(T:K, V:KResult)) => true
-    rule isAvailable(indirectbr(A:K, Es:List)) => isAvailable(A)
-    rule isAvailable(switch(T:K, V:KResult, L:K, Rs:List)) => true
-    rule isAvailable(select(T:K, I:KResult, A:K, B:K))
-               => isAvailable(A) andBool isAvailable(B)
-    rule isAvailable(globalAlloca(T:K, A:KResult, Ad:Int, Al:K, Con:Bool))
-                    => true
+    rule isAvailable(conditional(A:K, V1:K, V2:K)) => isAvailableVar(A)
+    rule isAvailable(indirectbr(A:K, Es:List)) => isAvailableVar(A)
+    rule isAvailable(switch(T:K, V:K, L:K, Rs:List)) => isAvailableVar(V)
+    rule isAvailable(select(T:K, I:K, A:K, B:K))
+               => isAvailableVar(I) andBool isAvailableVar(A) andBool isAvailableVar(B)
+    rule isAvailable(globalAlloca(T:K, A:K, Ad:Int, Al:K, Con:Bool))
+                    => isAvailableVar(A)
     rule isAvailable(alloca(Ty:K, A:K, Ad:Int, Align:Int, Con:Bool))
-               => isAvailable(A)
-    rule isAvailable(preAlloca(T2:K, V:KResult)) => true
-    rule isAvailable(store(Ty:K, V1:KResult, T2:K, V2:KResult,
-                             Align:Int, _:Bool)) => true
-    rule isAvailable(load(Ty:K, V1:KResult, Align:Int, _:Bool)) => true
+               => isAvailableVar(A)
+    rule isAvailable(preAlloca(T2:K, V:K)) => isAvailableVar(V)
+    rule isAvailable(store(Ty:K, V1:K, T2:K, V2:K, Align:Int, _:Bool))
+                         => isAvailableVar(V1) andBool isAvailableVar(V2)
+    rule isAvailable(load(Ty:K, V1:K, Align:Int, _:Bool)) => isAvailableVar(V1)
     rule isAvailable(fence(Od:K)) => true
-    rule isAvailable(ret(Ty:K, V:KResult)) => true
+    rule isAvailable(ret(Ty:K, V:K)) => isAvailableVar(V)
     rule isAvailable(tailCall(T:K, callee(V:K,
                        arguments(Es:ElemList)))) => isAvailableInElemList(Es)
     rule isAvailable(call(T:K, callee(V:K,
@@ -4476,10 +4492,10 @@ module LLVM-HELPERS
     rule isAvailable(getElementPtr(Ty:K, V:K, Es:ElemList))
                 => isAvailableInGepTerm(V) andBool isAvailableInElemList(Es)
     rule isAvailable(cmpxchg(TV1:K, TV2:K, TV3:K, Or1:K, Or2:K, Vol:Bool))
-             => isAvailable(TV1) andBool isAvailable(TV2) andBool isAvailable(TV3)
+             => isAvailableVar(TV1) andBool isAvailableVar(TV2) andBool isAvailableVar(TV3)
     rule isAvailable(atomicrmw(B:K, TV2:K, TV3:K, Or1:K, Vol:Bool))
-             => isAvailable(TV2) andBool isAvailable(TV3)
-    rule isAvailable(theVAArg(Ty:K, V:KResult, T2:K)) => true
+             => isAvailableVar(TV2) andBool isAvailableVar(TV3)
+    rule isAvailable(theVAArg(Ty:K, V:K, T2:K)) => isAvailableVar(V)
     rule isAvailable(A:K) => false [owise]
 
     syntax Bool ::= hasAvailables(List) [function]
@@ -4496,6 +4512,10 @@ module LLVM-HELPERS
               orBool getKLabel(A) ==KLabel 'theFDiv
               orBool getKLabel(A) ==KLabel 'theFRem
    rule isFloatOp(A:K) => false [owise]
+
+    syntax Bool ::= isTypedArg(K) [function]
+    rule isTypedArg(typedArg(S:Set, A:K, B:K)) => true
+    rule isTypedArg(A:K) => false [owise]
 
     syntax Bool ::= isIntOp(K) [function]
     rule isIntOp(A:K) => true
@@ -5687,6 +5707,9 @@ module LLVM-HELPERS
     rule sizeOfFunArg(.ElemList) => 0
     rule sizeOfFunArg(valValue(typedArg(S:Set, T:K, A:K)), E:ElemList)
              => sizeof(T) +Int sizeOfFunArg(E)
+    rule sizeOfFunArg(valValue(vaListType), E:ElemList)
+             => numBytesFunHeader +Int sizeOfFunArg(E)
+
 
     syntax Bool ::= isExternal(Set) [function]
     rule isExternal(S:Set) => external in S orBool extern_weak in S
@@ -5923,6 +5946,8 @@ module LLVM-HELPERS
     rule getArgTypes(.ElemList) => .ElemList
     rule getArgTypes(valValue(typedArg(S:Set, T:K, A:K)),Es:ElemList)
             => valValue(T),getArgTypes(Es)
+    rule getArgTypes(valValue(vaListType),Es:ElemList)
+            => valValue(vaListType),getArgTypes(Es)
 
     syntax Bool ::= hasMMXType(K)  [function]
                   | hasInValidMMXTypeAux(TypeList) [function]

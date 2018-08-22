@@ -54,3 +54,5 @@
           => typeCheckConstExprs(vectorTypeValue(T:FPType, I:Int),
                (val(typeOperand(T1,V1)),val(typeOperand(T2,V2)),.ElemList))
 */
+
+22. 32767 is not able to put in the range of a half but Clang allows it.
