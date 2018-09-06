@@ -94,21 +94,9 @@ module LLVM-CONFIGURATION
               </thread>
             </threads>
             <memorys>
-              <memory multiplicity="*" color="teal" type="Map"> //main memory, heap
+              <memory multiplicity="*" color="teal"> //main memory, heap
                 <channelId> 0 </channelId>
-                <objects>
-                  <object multiplicity="*" color="LightSkyBlue">
-                    <chunckRange> .K </chunckRange>
-                    <size> -1 </size>
-                    <align> 0 </align>
-                    <range> .K </range>
-                    <addrSpace> 0 </addrSpace>
-                    <complete> .Map </complete>
-                    //use for non atomic loads/stores to count bytes they read/write
-                    <race> .Set </race> //use to store the inst nums when a non-atomic load/store
-                    //is accessing this field. 
-                  </object>
-                </objects>
+                <objects> .Set </objects>
                 <timeStamps> .Map </timeStamps> //vector time stamps for each channel
                 <channelOps> .List </channelOps>
                 <ackMap> .Map </ackMap>

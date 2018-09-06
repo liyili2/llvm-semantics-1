@@ -696,7 +696,7 @@ module LLVM-ABSTRACTSYNTAX
     syntax KItem ::= dynInstInfo(Int, Int, K, K)
                       //block num, inst num, inst, inst type
     syntax KItem ::= dynInstHold(Int, Int, K) //block, inst num, inst type
-    syntax KItem ::= adjustMemList(Int) //father, new-count, 
+    syntax KItem ::= adjustMemListResult(Int) //father, new-count, 
     syntax KItem ::= adjustMemList(Int, K) //father, child, 
 
     syntax KItem ::= singleMem(Int, Int, Int, K, K) //block, inst num, stack/heap, inst
@@ -794,6 +794,8 @@ module LLVM-ABSTRACTSYNTAX
               //== base of first + size of first + align of second.
     syntax KItem ::= stackObject(K, Int, Int, Int, K)
             //chunckrange, size, align, addspace, range 
+    syntax KItem ::= object(K, Int, Int, Int, K, Set, Map)
+      //chunckrange, size, align, addspace, range, races, completes
     //instructions
     syntax KItem ::= "guessExternal"
     syntax KItem ::= preStaticStore(K, K, K, K, Int) [strict(2)]

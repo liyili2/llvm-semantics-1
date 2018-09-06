@@ -2015,7 +2015,7 @@ module LLVM-HELPERS
          requires I >=Int N
     rule splitPointerByte(loc(A:K, B:K, C:K, D:K, E:K, F:K), I:Int, N:Int)
              =>  insertLocInfo(splitIntByte(
-                  A, N, N *Int numBitsPerByte), B, C, D, E, F)
+                  A, N *Int numBitsPerByte, N *Int numBitsPerByte), B, C, D, E, F)
 
     syntax List ::= splitArrayByte(K, Int, Int, K)  [function]
                   | splitArrayByteAux(ElemList, Int, Int, K)  [function]
@@ -4137,10 +4137,8 @@ module LLVM-HELPERS
     syntax List ::= selectPhis(Int, K, List) [function]//label, op list
     syntax KItem ::= selectPhi(Int, K, K) [function]
     rule selectPhis(Fa:Int, A:K, .List) => .List
-    rule selectPhis(Fa:Int, A:K, ListItem(instNumInfo(Num:Int,
-               assign(X:K, instruction(In:K, Attrs:Set, Meta:K)), La:K)) L:List)
-         =>  ListItem(instNumInfo(Num:Int,
-               assign(X:K, instruction(In:K, Attrs:Set, Meta:K)), La:K))
+    rule selectPhis(Fa:Int, A:K, ListItem(instNumInfo(Num:Int, Op:K, La:K)) L:List)
+         =>  ListItem(instNumInfo(Num:Int, Op:K, La:K))
              selectPhis(Fa:Int, A, L)
          requires La =/=K phiInst
     rule selectPhis(Fa:Int, A:K, ListItem(instNumInfo(Num:Int,
@@ -4261,10 +4259,10 @@ module LLVM-HELPERS
          requires (notBool A in keys(M)) orBool (notBool A in keys(M'))
     rule findNextBlock(A:K, .K, .K, (A |-> B:K) M:Map, (A |-> C:K) M':Map)
           => findNextBlock(A, B, C, M, M')
-    rule findNextBlock(A:K, runBlock(Count:Int, Name:K, Fa:Int,
+    rule findNextBlock(A:K, runBlock(Count:Int, Name:K, Fa:K,
                L:List, S:Set, Child:Set), nextSpecs(.Set), M:Map, M':Map)
           => findNextBlockAux(.K, Child, M, M')
-    rule findNextBlock(A:K, runBlock(Count:Int, Name:K, Fa:Int,
+    rule findNextBlock(A:K, runBlock(Count:Int, Name:K, Fa:K,
                L:List, S:Set, Child:Set), nextSpecs(SetItem(Na:K) Cs:Set), M:Map, M':Map)
           => selectSpec(A, Na, Cs)
     rule findNextBlockAux(.K, .Set, M:Map, M':Map) => none
@@ -4279,7 +4277,7 @@ module LLVM-HELPERS
     rule getFatherName(A:K, M:Map) => none
          requires notBool A in keys(M)
     rule getFatherName(A:K, (A |-> runBlock(Count:Int,
-                   Name:K, Fa:Int, L:List, S:Set, Child:Set)) M:Map) => Name
+                   Name:K, Fa:K, L:List, S:Set, Child:Set)) M:Map) => Name
     syntax KItem ::= getFatherId(K) [function]
     rule getFatherId(runBlock(Count:Int,
                    Name:K, Fa:K, L:List, S:Set, Child:Set)) => Fa
@@ -4331,8 +4329,8 @@ module LLVM-HELPERS
     rule getAllChildren(SetItem(A:Int) S:Set, M:Map)
               => getAllChildrenAux(A,.K, M) getAllChildren(S, M)
 
-    syntax Map ::= cutOffWrongBranches(Int, Int, Map)
-                 | cutOffWrongBranchesAux(Int, K, Set, Map)
+    syntax Map ::= cutOffWrongBranches(Int, Int, Map)  [function]
+                 | cutOffWrongBranchesAux(Int, K, Set, Map) [function]
                //kept child, runblock, Map
     rule cutOffWrongBranches(Fa:Int, Chi:Int, M:Map)
             => cutOffWrongBranchesAux(Chi, .K, getAllChildrenAux(Fa, .K, M), M)
@@ -4498,11 +4496,35 @@ module LLVM-HELPERS
     rule isAvailable(theVAArg(Ty:K, V:K, T2:K)) => isAvailableVar(V)
     rule isAvailable(A:K) => false [owise]
 
-    syntax Bool ::= hasAvailables(List) [function]
-    rule hasAvailables(.List) => false
-    rule hasAvailables(ListItem(dynInstInfo(BN:Int,
+    syntax Bool ::= hasAvailables(Int, List) [function]
+                  | hasAvailablesAux(List) [function]
+    rule hasAvailables(Cur:Int, .List) => false
+    rule hasAvailables(Cur:Int, ListItem(dynInstInfo(BN:Int,
                         IN:Int, Inst:K, T:K)) L:List)
-         => isAvailable(Inst) orBool hasAvailables(L)
+         => isAvailable(Inst) orBool hasAvailablesAux(L)
+         requires (T =/=K terminators) andBool (T =/=K returnInst)
+                   andBool (T =/=K callInst) andBool (T =/=K vaInst)
+                   andBool (T =/=K fenceInst)
+    rule hasAvailables(Cur:Int, ListItem(dynInstInfo(BN:Int,
+                        IN:Int, Inst:K, T:K)) L:List) => isAvailable(Inst)
+          requires ((T ==K terminators) orBool (T ==K returnInst)
+                   orBool (T ==K callInst) orBool (T ==K vaInst)
+                    orBool (T ==K fenceInst))
+                   andBool BN <=Int Cur
+    rule hasAvailables(Cur:Int, ListItem(dynInstInfo(BN:Int,
+                        IN:Int, Inst:K, T:K)) L:List) => false [owise]
+    rule hasAvailablesAux(.List) => false
+    rule hasAvailablesAux(ListItem(dynInstInfo(BN:Int,
+                        IN:Int, Inst:K, T:K)) L:List)
+               => isAvailable(Inst) orBool hasAvailablesAux(L)
+         requires (T =/=K terminators) andBool (T =/=K returnInst)
+                   andBool (T =/=K callInst) andBool (T =/=K vaInst)
+                   andBool (T =/=K fenceInst)
+    rule hasAvailablesAux(ListItem(dynInstInfo(BN:Int,
+                        IN:Int, Inst:K, T:K)) L:List) => false
+          requires ((T ==K terminators) orBool (T ==K returnInst)
+                   orBool (T ==K callInst) orBool (T ==K vaInst)
+                    orBool (T ==K fenceInst))
 
     syntax Bool ::= isFloatOp(K) [function]
     rule isFloatOp(A:K) => true
@@ -4880,8 +4902,7 @@ module LLVM-HELPERS
             S:Set, Rev:Map, RM:Map)
                   => findNewSpec(findNextBlock(New, .K, .K, Rev, RM))
         requires notBool OldId in S
-   rule checkToKillBlockEx(New:K, blockExecution(OldId:K, BE:List),
-            S:Set, Rev:Map, RM:Map) => .K [owise]
+   rule checkToKillBlockEx(New:K, B:K, S:Set, Rev:Map, RM:Map) => .K [owise]
 
    //get all children of a root block num including the block
    syntax Set ::= getChildrenOfBlock(K, K, Map) [function]
@@ -4892,7 +4913,7 @@ module LLVM-HELPERS
           => getChildrenOfBlock(A, B, M)
    rule getChildrenOfBlock(A:K, runBlock(Bn:Int, Name:K,
               Fa:Int, L:List, Vars:Set, Cs:Set), M:Map)
-         => getChildrenOfBlockAux(.K, Cs, M)
+         => SetItem(A) getChildrenOfBlockAux(.K, Cs, M)
    rule getChildrenOfBlockAux(.K, .Set, M:Map) => .Set
    rule getChildrenOfBlockAux(.K, SetItem(A:K) S:Set, M:Map)
          => getChildrenOfBlockAux(A, S, M)
@@ -5086,7 +5107,7 @@ module LLVM-HELPERS
    rule inChoiceMap(E:K, A:K, .K, (A |-> B:K) M:Map)
         => inChoiceMap(E:K, A, B, M)
    rule inChoiceMap(E:K, A:K, runBlock(Bn:Int, Name:K,
-              Fa:Int, L:List, Vars:Set, Cs:Set), M:Map)
+              Fa:K, L:List, Vars:Set, Cs:Set), M:Map)
         => inChoiceMapAux(E:K, .K, Cs, .K, M)
    rule inChoiceMapAux(E:K, .K, .Set, .K, M:Map) => false
    rule inChoiceMapAux(E:K, .K, SetItem(A:K) S:Set,.K, M:Map)
@@ -5097,9 +5118,9 @@ module LLVM-HELPERS
    rule inChoiceMapAux(E:K, A:Int, S:Set,.K, (A |-> B:K) M:Map)
          => inChoiceMapAux(E, A, S, B, (A |-> B:K) M)
    rule inChoiceMapAux(Name, A:Int, S:Set, runBlock(Bn:Int, Name:K,
-              Fa:Int, L:List, Vars:Set, Cs:Set), M:Map) => true
+              Fa:K, L:List, Vars:Set, Cs:Set), M:Map) => true
    rule inChoiceMapAux(Name':K, A:Int, S:Set, runBlock(Bn:Int, Name:K,
-              Fa:Int, L:List, Vars:Set, Cs:Set), M:Map)
+              Fa:K, L:List, Vars:Set, Cs:Set), M:Map)
       => inChoiceMapAux(Name', .K, S, .K, M)
          requires Name =/=K Name'
 
@@ -5110,7 +5131,7 @@ module LLVM-HELPERS
    rule getBlockNum(E:K, A:K, .K, (A |-> B:K) M:Map)
         => getBlockNum(E:K, A, B, M)
    rule getBlockNum(E:K, A:K, runBlock(Bn:Int, Name:K,
-              Fa:Int, L:List, Vars:Set, Cs:Set), M:Map)
+              Fa:K, L:List, Vars:Set, Cs:Set), M:Map)
         => getBlockNumAux(E:K, .K, Cs, .K, M)
    rule getBlockNumAux(E:K, .K, .Set, .K, M:Map) => none
    rule getBlockNumAux(E:K, .K, SetItem(A:K) S:Set,.K, M:Map)
@@ -5791,6 +5812,27 @@ module LLVM-HELPERS
              => SetItem(singleMem(A':Int,
            B':Int, C':Int, Ran:K, RW:K)) removeRaceInSet(S,.K, A, B, C)
         requires A =/=K A' orBool B =/=K B' orBool C =/=K C'
+
+    syntax Set ::= removeRaceInObjects(Int, Int, K, Set, Int, Int, Int) [function]
+    rule removeRaceInObjects(Base:Int, Size:Int, .K, .Set, A:Int, B:Int, C:Int)
+            => .Set
+    rule removeRaceInObjects(Base:Int, Size:Int, .K,
+              SetItem(I:K) S:Set, A:Int, B:Int, C:Int)
+          => removeRaceInObjects(Base, Size, I, S, A, B, C)
+    rule removeRaceInObjects(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map),
+               S:Set, A:Int, B:Int, C:Int)
+            => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K,
+              removeRaceInSet(Races, .K, A, B, C), Com:Map)) S
+         requires Base +Int Size <=Int Right andBool Base >=Int Left
+    rule removeRaceInObjects(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map),
+               S:Set, A:Int, B:Int, C:Int)
+            => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races, Com:Map))
+            removeRaceInObjects(Base, Size, .K, S, A, B, C)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
 
     syntax List ::= removeLocalStack(Int, List) [function]
     rule removeLocalStack(Base:Int, .List) => .List
@@ -7515,5 +7557,137 @@ module LLVM-HELPERS
             Size:Int, Al:Int, Ad:Int, Ran:K)) L:List, B:Int, S:Int)
              => isStackInChunckRange(L, B, S)
          requires notBool (B >=Int Left andBool B +Int S <=Int Right)
+
+    //functions for helping non-atomic memory ops
+    syntax Set ::= deleteObject(Int, K, Set) [function]
+    rule deleteObject(Base:Int, .K, .Set) => .Set
+    rule deleteObject(Base:Int, .K, SetItem(A:K) S:Set) => deleteObject(Base,A, S)
+    rule deleteObject(Base:Int, object(value(Base, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set) => S
+    rule deleteObject(Base:Int, object(value(Base':Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => SetItem(object(value(Base':Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map))
+               deleteObject(Base, .K, S)
+         requires Base =/=K Base'
+
+    syntax List ::= deleteMemRange(List, Int) [function]
+    rule deleteMemRange(.List, I:Int) => .List
+    rule deleteMemRange(ListItem(value(Left:Int, Right:Int)) L:List, I:Int)
+         => L
+         requires I <=Int Right andBool I >=Int Left
+    rule deleteMemRange(ListItem(value(Left:Int, Right:Int)) L:List, I:Int)
+         => ListItem(value(Left:Int, Right:Int)) deleteMemRange(L, I)
+         requires notBool (I <=Int Right andBool I >=Int Left)
+
+    syntax Bool ::= matchAddrSpace(Int, Int, Int, K, Set) [function]
+    rule matchAddrSpace(Base:Int, Size:Int, Ad:Int, .K, .Set) => false
+    rule matchAddrSpace(Base:Int, Size:Int, Ad:Int, .K, SetItem(A:K) S:Set)
+           => matchAddrSpace(Base, Size, Ad:Int, A, S)
+    rule matchAddrSpace(Base:Int, Size:Int, Ad:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Ad:Int, R:K, Races:Set, Com:Map), S:Set) => true
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+    rule matchAddrSpace(Base:Int, Size:Int, Ad:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Ad':Int, R:K, Races:Set, Com:Map), S:Set) => false
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+                   andBool Ad =/=K Ad'
+    rule matchAddrSpace(Base:Int, Size:Int, Ad:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => matchAddrSpace(Base, Size, Ad, .K, S)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
+
+    syntax Bool ::= isConstantObject(Int, Int, K, Set) [function]
+    rule isConstantObject(Base:Int, Size:Int, .K, .Set) => false
+    rule isConstantObject(Base:Int, Size:Int, .K, SetItem(A:K) S:Set)
+           => isConstantObject(Base, Size, A, S)
+    rule isConstantObject(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Ad:Int, constant, Races:Set, Com:Map), S:Set) => true
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+    rule isConstantObject(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Ad':Int, R:K, Races:Set, Com:Map), S:Set) => false
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+                   andBool R =/=K constant
+    rule isConstantObject(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => isConstantObject(Base, Size, .K, S)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
+
+    syntax Set ::= getRace(Int, Int, K, Set) [function]
+    rule getRace(Base:Int, Size:Int, .K, .Set) => .Set
+    rule getRace(Base:Int, Size:Int, .K, SetItem(A:K) S:Set)
+           => getRace(Base, Size, A, S)
+    rule getRace(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => Races
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+    rule getRace(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => getRace(Base, Size, .K, S)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
+
+    syntax Map ::= getComplete(Int, Int, K, Set) [function]
+    rule getComplete(Base:Int, Size:Int, .K, .Set) => .Map
+    rule getComplete(Base:Int, Size:Int, .K, SetItem(A:K) S:Set)
+           => getComplete(Base, Size, A, S)
+    rule getComplete(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => Com
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+    rule getComplete(Base:Int, Size:Int, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => getComplete(Base, Size, .K, S)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
+
+    syntax Set ::= updateRaceInObjects(Int, Int, K, K, Set) [function]
+    rule updateRaceInObjects(Base:Int, Size:Int, C:K, .K, .Set) => .Set
+    rule updateRaceInObjects(Base:Int, Size:Int, C:K, .K, SetItem(A:K) S:Set)
+           => updateRaceInObjects(Base, Size,C, A, S)
+    rule updateRaceInObjects(Base:Int, Size:Int,C:K, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races SetItem(C), Com:Map)) S
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+    rule updateRaceInObjects(Base:Int, Size:Int, C:K, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map))
+              updateRaceInObjects(Base, Size, C, .K, S)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
+
+    syntax Set ::= updateComInObjects(Int, Int, K, K, K, Set) [function]
+    rule updateComInObjects(Base:Int, Size:Int, C:K, V:K, .K, .Set) => .Set
+    rule updateComInObjects(Base:Int, Size:Int, C:K, V:K, .K, SetItem(A:K) S:Set)
+           => updateComInObjects(Base, Size,C, V, A, S)
+    rule updateComInObjects(Base:Int, Size:Int,C:K, V:K, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races, Com[C <- V])) S
+         requires Base +Int Size <=Int Right andBool Base  >=Int Left
+    rule updateComInObjects(Base:Int, Size:Int, C:K, V:K, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map))
+              updateComInObjects(Base, Size, C, V, .K, S)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
+
+    syntax Map ::= removeEntryObjects(Map, K) [function]
+    rule removeEntryObjects(M:Map (C|-> D:K), C:K) => M
+    rule removeEntryObjects(M:Map, C:K) => M [owise]
+
+    syntax Set ::= removeEntryComInObjects(Int, Int, K, K, Set) [function]
+    rule removeEntryComInObjects(Base:Int, Size:Int, C:K, .K, .Set) => .Set
+    rule removeEntryComInObjects(Base:Int, Size:Int, C:K, .K, SetItem(A:K) S:Set)
+           => removeEntryComInObjects(Base, Size,C, A, S)
+    rule removeEntryComInObjects(Base:Int, Size:Int,C:K, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races, removeEntryObjects(Com, C))) S
+         requires Base +Int Size <=Int Right andBool Base >=Int Left
+    rule removeEntryComInObjects(Base:Int, Size:Int, C:K, object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map), S:Set)
+          => SetItem(object(value(Left:Int, Right:Int),
+           Size':Int, Align:Int, Adds:Int, R:K, Races:Set, Com:Map))
+              removeEntryComInObjects(Base, Size, C, .K, S)
+         requires notBool (Base +Int Size <=Int Right andBool Base >=Int Left)
 
 endmodule

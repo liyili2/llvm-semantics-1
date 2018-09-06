@@ -214,17 +214,17 @@ module LLVM-CALL-RET
     rule <toExecute> blockHold(findNewSpec(none)) => blockHold(.K) ...</toExecute>
 
     rule <k> adjustMemList(OldCount:Int, NewCount:Int)
-                   => adjustMemList(NewCount) ...</k>
+                   => adjustMemListResult(NewCount) ...</k>
          <toExecute> blockHold(.K) => .K ...</toExecute>
          <specTree> SPT:Map => cutOffWrongBranches(OldCount, NewCount, SPT) </specTree>
 
     rule <k> adjustMemList(OldCount:Int, NewCount:Int)
-                   => adjustMemList(NewCount) ...</k>
+                   => adjustMemListResult(NewCount) ...</k>
          <toExecute> blockHold(blockExecution(OldId:K, BE:List))
                        => blockExecution(OldId:K, BE:List) ...</toExecute>
          <specTree> SPT:Map => cutOffWrongBranches(OldCount, NewCount, SPT) </specTree>
 
-    rule <k> adjustMemList(OldCount:Int, NewCount:Int) => adjustMemList(NewCount) ...</k>
+    rule <k> adjustMemList(OldCount:Int, NewCount:Int) => adjustMemListResult(NewCount) ...</k>
          <toExecute> blockHold(findNewSpec(selectSpec(Fa:Int, Name:K, Cs:Set)))
               => blockExecution(basicBlockNum(Count, Name),
             selectPhis(Fa, getFatherName(Fa, Rev), formInstList(1, .K, Body)))
@@ -270,7 +270,8 @@ module LLVM-CALL-RET
     rule <instQueue> instList(ListItem(A:K) L:List)
                       => splitQueue(.List, .List, ListItem(A) L) </instQueue>
          <cpu> .K </cpu>
-         requires hasAvailables(ListItem(A) L)
+         <currBlock> basicBlockNum(Cur:Int, _:K) </currBlock>
+         requires hasAvailables(Cur, ListItem(A) L)
          [structural]
 
     rule <instQueue> splitQueue(ListItem(dynInstInfo(BN:Int,

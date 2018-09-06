@@ -19,12 +19,12 @@ module LLVM-BRANCHING
     //dealing with unconditional branch
     //need to take care the case when we need to clean up speculative 
     //opeartors. 
-    rule <k> adjustMemList(NewCount:Int) => .K ...</k>
+    rule <k> adjustMemListResult(NewCount:Int) => .K ...</k>
          <specTree> M:Map </specTree>
          <currBlock> blockHold(A:K) => A </currBlock>
-         <toCommit> memList(A:K, Ready:Set, PA:List,
+         <toCommit> memList(B:K, Ready:Set, PA:List,
              PA':List, Che:List, Not:List)
-            => dealWithToCommit(A:K, Ready:Set,
+            => dealWithToCommit(B:K, Ready:Set,
             divideParList(NewCount, getRidWrongSepcOps(keys(M), PA:List)),
            divideParList(NewCount, getRidWrongSepcOps(keys(M), PA':List)),
           getRidWrongSepcOps(keys(M), Che:List),
@@ -34,7 +34,7 @@ module LLVM-BRANCHING
                          getWrongSpecLocs(keys(M), .K, .K, MM), M') </cbd>
 
     rule <k> unconditional(name(Label:K, S:String)) =>
-            adjustMemList(Count) ~>
+            adjustMemListResult(Count) ~>
             (blockExecution(basicBlockNum(Count,name(Label:K, S:String)),
           selectPhis(OldCount,Name,formInstList(1, .K, Body)))
               ~> dynNoResult(undef)) ...</k>

@@ -406,15 +406,8 @@ module LLVM-MEMORY
     //create or realloc new memory in heap in every channel
     rule <memory>...
            <channelId> Chan':Int </channelId>
-          (<object>... <chunckRange> value(Base:Int, Right:Int) </chunckRange>
-             ...</object> =>
-              <object>...
-               <chunckRange> V </chunckRange>
-               <size> N </size>
-              <addrSpace> Ad </addrSpace>
-               <range> Ran </range> 
-               <align> Al </align>
-                       ...</object>)
+           <objects> Obj:Set => deleteObject(Base, .K, Obj)
+                         SetItem(object(V, N, Al, Ad, Ran, .Set, .Map)) </objects>
                   <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
                 <channelOps> (ListItem(rec(Chan:Int, MsgN:Int, TMN':Map,
@@ -429,14 +422,7 @@ module LLVM-MEMORY
 
     rule <memory>...
            <channelId> Chan':Int </channelId>
-          (.Bag =>
-              <object>...
-               <chunckRange> V </chunckRange>
-               <size> N </size>
-              <addrSpace> Ad </addrSpace>
-               <range> Ran </range> 
-               <align> Al </align>
-                       ...</object>)
+          <objects> Obj:Set (.Set => SetItem(object(V, N, Al, Ad, Ran, .Set, .Map))) </objects>
                   <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
                 <channelOps> (ListItem(rec(Chan:Int, MsgN:Int, TMN':Map, startMem(V:K,
@@ -500,11 +486,9 @@ module LLVM-MEMORY
 
     //non-atomic memory write in other channel
     rule <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <race> Races:Set </race>
-         <complete> CM:Map </complete> ...</object>
+         <objects> Obj:Set </objects>
            <channelId> Chan':Int </channelId>
-                  <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
+         <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
           <channelOps> (ListItem(rec(Chan:Int, MsgN:Int, TMN':Map,
             msgByteWrite(Tid:Int,Bn:Int, In:Int, Base:Int,
@@ -514,18 +498,17 @@ module LLVM-MEMORY
            <memory>... <channelId> Chan </channelId>
                        <ackMap> ACM:Map ((MsgN |-> AcK)
                           => checkAcks(MsgN, AcK +Int 1)) </ackMap> ...</memory>
+          <memoryList> MOL:List </memoryList>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-           andBool Base +Int 1 <=Int Right andBool Base  >=Int Left
-                 andBool notBool isOverlap(Base, 1, .K, Races)
+           andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
+           andBool isInMemRange(MOL, Base, 1)
          [transition]
 
     rule <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <race> Races:Set (.Set => SetItem(
-                   singleMem(Tid, Bn, In, heap, value(Base,
-                 Base +Int Size)))) </race>
-         <complete> CM:Map => CM[memId(Tid,Bn,In) <- 1] </complete>
-             ...</object>
+          <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
@@ -537,19 +520,17 @@ module LLVM-MEMORY
            <memory>... <channelId> Chan </channelId>
                        <ackMap> ACM:Map ((MsgN |-> AcK)
                           => checkAcks(MsgN, AcK +Int 1)) </ackMap> ...</memory>
+          <memoryList> MOL:List </memoryList>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-           andBool Base +Int Size <=Int Right andBool Base  >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
+           andBool isInMemRange(MOL, Base, Size)
+           andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
           [transition]
 
     rule <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-         <race> Races:Set </race>
-             ...</object>
+         <objects> Obj:Set => updateComInObjects(Base, Size, memId(Tid, Bn, In),
+          getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1, .K, Obj) </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
@@ -561,18 +542,18 @@ module LLVM-MEMORY
            <memory>... <channelId> Chan </channelId>
                        <ackMap> ACM:Map ((MsgN |-> AcK)
                           => checkAcks(MsgN, AcK +Int 1)) </ackMap> ...</memory>
+          <memoryList> MOL:List </memoryList>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-           andBool Base +Int Size <=Int Right andBool Base  >=Int Left
-                 andBool Count +Int 1 <Int Size
-                 andBool Size =/=Int 1
+           andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+           andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
+           andBool Size =/=Int 1
+           andBool isInMemRange(MOL, Base, Size)
          [transition]
 
     rule <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <complete> CM:Map ((memId(Tid, Bn, In)
-                          |-> Count:K) => .Map) </complete>
-         <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race>
-             ...</object>
+          <objects> Obj:Set => removeEntryComInObjects(Base, Size, 
+               memId(Tid, Bn, In), .K, removeRaceInObjects(Base, Size,
+                      .K, Obj, Tid, Bn, In)) </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
@@ -584,17 +565,17 @@ module LLVM-MEMORY
            <memory>... <channelId> Chan </channelId>
                        <ackMap> ACM:Map ((MsgN |-> AcK)
                           => checkAcks(MsgN, AcK +Int 1)) </ackMap> ...</memory>
+          <memoryList> MOL:List </memoryList>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-           andBool Base +Int Size <=Int Right andBool Base  >=Int Left
-                 andBool Count +Int 1 >=Int Size
-                 andBool Size =/=Int 1
+           andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+           andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
+           andBool Size =/=Int 1
+           andBool isInMemRange(MOL, Base, Size)
          [transition]
 
     rule <threads> Td:Bag => .Bag </threads>
          <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <complete> CM:Map </complete>
-         <race> Races:Set </race> ...</object>
+         <objects> Obj:Set </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map </timeStamps>
           <channelOps> (ListItem(rec(Chan:Int, MsgN:Int, TMN':Map,
@@ -607,14 +588,13 @@ module LLVM-MEMORY
         <output>... .List =>
           ListItem("error: undefied behavior because two mem op races on the same location") </output>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-            andBool Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
+            andBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+            andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
         [transition]
 
     //close the memory heap in all channels
     rule <memory>...
-          (<object>... <chunckRange> value(Base:Int, Right:Int) </chunckRange>
-             ...</object> => .Bag)
+          <objects> Obj:Set => deleteObject(Base, .K, Obj) </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
@@ -630,10 +610,7 @@ module LLVM-MEMORY
 
     //atomic memory write in other channel
     rule <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <complete> CM:Map </complete>
-         <race> Races:Set </race>
-             ...</object>
+         <objects> Obj:Set </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
@@ -645,17 +622,15 @@ module LLVM-MEMORY
            <memory>... <channelId> Chan </channelId>
                        <ackMap> ACM:Map ((MsgN |-> AcK)
                           => checkAcks(MsgN, AcK +Int 1)) </ackMap> ...</memory>
+         <memoryList> MOL:List </memoryList>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-           andBool Base +Int Size <=Int Right andBool Base  >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                  andBool Ord =/=K seq_cst
+           andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+           andBool Ord =/=K seq_cst
+           andBool isInMemRange(MOL, Base, Size)
          [transition]
 
     rule <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <complete> CM:Map </complete>
-         <race> Races:Set </race>
-             ...</object>
+         <objects> Obj:Set </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map => addOneInTimeStamp(Chan', updateTimeStamp(
                                0, maxMemChannel, .K, .K, TMN, TMN')) </timeStamps>
@@ -666,16 +641,15 @@ module LLVM-MEMORY
            ...</memory>
            <memory>... <channelId> Chan </channelId>
                        <ackMap>... MsgN |-> (AcK => AcK +Int 1) ...</ackMap> ...</memory>
+         <memoryList> MOL:List </memoryList>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-           andBool Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+           andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+           andBool isInMemRange(MOL, Base, Size)
          [transition]
 
     rule <threads> Td:Bag => .Bag </threads>
          <memory>...
-         <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-         <complete> CM:Map </complete>
-         <race> Races:Set </race> ...</object>
+         <objects> Obj:Set </objects>
          <channelId> Chan':Int </channelId>
           <timeStamps> TMN:Map </timeStamps>
           <channelOps> (ListItem(rec(Chan:Int, MsgN:Int, TMN':Map,
@@ -685,11 +659,12 @@ module LLVM-MEMORY
            ...</memory>
            <memory>... <channelId> Chan </channelId>
                        <ackMap> ACM:Map (MsgN |-> AcK) </ackMap> ...</memory>
+         <memoryList> MOL:List </memoryList>
         <output>... .List =>
           ListItem("error: undefied behavior because two mem op races on the same location") </output>
          requires notBool timeStampGreater(0, maxMemChannel, .K, .K, TMN, TMN')
-            andBool Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
+            andBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+           andBool isInMemRange(MOL, Base, Size)
        [transition]
 
     //free a memory in heap
@@ -707,7 +682,7 @@ module LLVM-MEMORY
         [transition]
 
     //realloc a memory in heap --> close current one and create a new one
-    rule <k> realloc(loc(Base1:Int, Ty,
+    rule <k> realloc(loc(Base1:Int, Ty:K,
                  value(Left:Int, Right:Int), heap, none, InR:K), Size:Int)
                           => globalAllocaWait(TN +Int 1, nextMemSym(Base, 0, 1,
                llvmVoidPointerType, value(Base, nextBase(Base, Size, 1))))  ...</k>
@@ -715,16 +690,9 @@ module LLVM-MEMORY
          <currBlock> basicBlockNum(BN:Int, _:K) </currBlock>
         <memory>...
         <channelId> Chan </channelId>
-          (<object> D:Bag
-           <chunckRange> value(Base1:Int, Right1:Int) </chunckRange>
-            </object> =>
-            <object>...
-             <chunckRange> value(Base, nextBase(Base, Size, 1)) </chunckRange>
-             <size> 1 </size>
-             <addrSpace> 0 </addrSpace>
-             <range> heap </range> 
-             <align> newPacking(Base, 1) </align>
-                       ...</object> )
+         <objects> Obj:Set => deleteObject(Base1, .K, Obj)
+            SetItem(object(value(Base, nextBase(Base, Size, 1)),
+                  1, newPacking(Base, 1), 0, heap, .Set, .Map)) </objects>
         <ackMap> AckM:Map => AckM[TN +Int 1 <- 0] </ackMap>
         <channelOps> ChanL:List (.List => ListItem(sendToAll(Chan, 0, maxMemChannel,
                TN +Int 1, TMN (Chan |-> TN +Int 1),
@@ -732,12 +700,13 @@ module LLVM-MEMORY
               0, heap, newPacking(Base, 1)))))) </channelOps>
         <timeStamps> TMN:Map (Chan |-> (TN:Int => TN +Int 1)) </timeStamps>
         ...</memory>
-        <memoryList> MRL:List (.List => ListItem(value(Base,
-                     nextBase(Base, Size, 1)))) </memoryList>
+        <memoryList> MRL:List => deleteMemRange(MRL, Base1) ListItem(value(Base,
+                     nextBase(Base, Size, 1))) </memoryList>
         <nextBase> Base:Int => nextBase(Base, Size, 1) </nextBase>
         <memoryRange> value(I:Int, F:Int) => value(I, nextBase(Base,
                             Size, 1)) </memoryRange>
         requires Size >Int 0 andBool Base1 >=Int Left andBool Base1 <=Int Right
+           andBool isInMemRange(MRL, Base1, 0)
         [transition]
 
     rule <threads> 
@@ -786,15 +755,9 @@ module LLVM-MEMORY
          <currBlock> basicBlockNum(BN:Int, _:K) </currBlock>
         <memory>...
         <channelId> Chan </channelId>
-        (.Bag =>
-            <object>...
-             <chunckRange> value(Base,
-                    nextBase(Base, Size *Int N, 1)) </chunckRange>
-             <size> N </size>
-             <addrSpace> 0 </addrSpace>
-             <range> heap </range> 
-             <align> newPacking(Base, 1) </align>
-                       ...</object> )
+        <objects> Obj:Set (.Set => SetItem(object(value(Base,
+                    nextBase(Base, Size *Int N, 1)),
+                  N, newPacking(Base, 1), 0, heap, .Set, .Map))) </objects>
         <ackMap> AckM:Map => AckM[TN +Int 1 <- 0] </ackMap>
         <channelOps> ChanL:List (.List => ListItem(sendToAll(Chan, 0, maxMemChannel,
                TN +Int 1, TMN (Chan |-> TN +Int 1),
@@ -829,15 +792,10 @@ module LLVM-MEMORY
          <currBlock> basicBlockNum(BN:Int, _:K) </currBlock>
         <memory>...
         <channelId> Chan </channelId>
-        (.Bag =>
-            <object>...
-             <chunckRange> value(curBase(Base, Al),
-                    nextBase(Base, sizeof(Type) *Int N, Al)) </chunckRange>
-             <size> N </size>
-             <addrSpace> Ad </addrSpace>
-             <range> getRangeFromFlagInHeap(Con) </range> 
-             <align> newPacking(Base, Al) </align>
-                       ...</object> )
+        <objects> Obj:Set (.Set => SetItem(object(value(curBase(Base, Al),
+                    nextBase(Base, sizeof(Type) *Int N, Al)),
+                  N, newPacking(Base, Al), Ad,
+               getRangeFromFlagInHeap(Con), .Set, .Map))) </objects>
         <ackMap> AckM:Map => AckM[TN +Int 1 <- 0] </ackMap>
         <channelOps> ChanL:List (.List => ListItem(sendToAll(Chan, 0, maxMemChannel,
                TN +Int 1, TMN (Chan |-> TN +Int 1),
@@ -2044,16 +2002,15 @@ module LLVM-MEMORY
                 stack, toClose(Base:Int)))
                 => ListItem(singleMem(TID:Int, B:Int, In:Int,heap,
                         msgWait(MsgN +Int 1)))) L:List </memOpList>
-           (<object> D:Bag
-              <chunckRange> value(Base:Int, Right:Int) </chunckRange>
-            </object> => .Bag)
+           <objects> Obj:Set => deleteObject(Base, .K, Obj) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
                    TM (CId |-> MsgN +Int 1), toClose(Base:Int)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap> </memory>
          <memoryList> SL:List => removeMemBlock(SL, Base) </memoryList>
-
+         requires isInMemRange(SL, Base, 0)
+          [transition]
 
     rule (<threads> TD:Bag => .Bag </threads>)
          <memOpList> (ListItem(singleMem(TID:Int, B, In,
@@ -2133,6 +2090,7 @@ module LLVM-MEMORY
                              getMemWithAtomic(BM, Base, 0, Size))) =/=K -1
               andBool sizeof(T1) <=Int sizeof(getTypeInStruct(VaType,
                                joinBytes(T, getMemWithAtomic(BM, Base, 0, Size))))
+          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, .List),Unf:K,
@@ -2211,13 +2169,7 @@ module LLVM-MEMORY
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, 1, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-          <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-           <race> Races:Set </race>
-           <addrSpace> Ad </addrSpace>
-           <range> constant </range>
-           <complete> CM:Map </complete> </object>
-         ...</objects>
+         <objects> Obj:Set </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2225,25 +2177,20 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, 1, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int 1 <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, 1, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
+         requires matchAddrSpace(Base, 1, Ad, .K, Obj)
+                 andBool isConstantObject(Base, 1, .K, Obj)
+                 andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In)
+                               in keys(getComplete(Base, 1, .K, Obj))
                  andBool notBool (Base +Int Other) in keys(BM)
+          [transition]
 
     rule <memory>
          <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, 1, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-           <object> Obj:Bag
-             <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <race> Races:Set </race>
-             <addrSpace> Ad </addrSpace>
-             <range> heap </range>
-             <complete> CM:Map </complete>
-           </object>
-         ...</objects>
+         <objects> Obj:Set </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2251,24 +2198,21 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, 1, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int 1 <=Int Right andBool Base  >=Int Left
-                 andBool notBool isOverlap(Base, 1, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
+         requires matchAddrSpace(Base, 1, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, 1, .K, Obj)
+                 andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, 1, .K, Obj))
+          [transition]
 
     rule <threads> Td:Bag => .Bag </threads>
          <memory> MB:Bag
            <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) L:List => .List </memOpList>
-          <objects>...
-           <object> Obj:Bag
-              <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-              <race> Races:Set </race>
-              <range> constant </range> </object>
-           ...</objects>
+          <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
         <output>... (.List => ListItem("error: undefied behavior because trying to write to a constant field that has been initialized.")) </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isConstantObject(Base, Size, .K, Obj)
                     andBool (Base +Int Other) in keys(BM)
 
     rule <memory>
@@ -2276,15 +2220,7 @@ module LLVM-MEMORY
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, 1, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-           <object> Obj:Bag
-            <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-            <range> heap </range>
-            <race> Races:Set </race>
-            <complete> CM:Map </complete>
-            <addrSpace> Ad':Int </addrSpace>
-           </object>
-         ...</objects>
+         <objects> Obj:Set </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2292,26 +2228,22 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, 1, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
+          <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int 1 <=Int Right andBool Base  >=Int Left
-                 andBool notBool isOverlap(Base, 1, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, 1, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, 1, .K, Obj)
+                 andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, 1, .K, Obj))
+                 andBool isInMemRange(MOL, Base, 1)
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, 1, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-            <range> constant </range>
-            <race> Races:Set </race>
-            <complete> CM:Map </complete>
-            <addrSpace> Ad':Int </addrSpace>
-           </object>
-         ...</objects>
+         <objects> Obj:Set </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2322,11 +2254,12 @@ module LLVM-MEMORY
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int 1 <=Int Right andBool Base  >=Int Left
-                 andBool notBool isOverlap(Base, 1, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, 1, Ad, .K, Obj)
+                 andBool isConstantObject(Base, 1, .K, Obj)
+                 andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, 1, .K, Obj))
                  andBool notBool (Base +Int Other) in keys(BM)
+          [transition]
 
     //non-atomic write: when the byte number is not one
      //and this is the first time the non-atomic write is touching the mem
@@ -2334,17 +2267,10 @@ module LLVM-MEMORY
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-          <object> Obj:Bag
-           <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-           <addrSpace> Ad:Int </addrSpace>
-           <range> constant </range>
-           <race> Races:Set (.Set => SetItem(
-                   singleMem(Tid, Bn, In, heap, value(Base,
-                 Base +Int Size)))) </race>
-           <complete> CM:Map => CM[memId(Tid,Bn,In) <- 1] </complete>
-          </object>
-         ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2352,26 +2278,22 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
+         requires notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
                  andBool notBool (Base +Int Other) in keys(BM)
+                 andBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <range> heap </range>
-             <race> Races:Set (.Set => SetItem(
-                   singleMem(Tid, Bn, In, heap, value(Base,
-                 Base +Int Size)))) </race>
-             <complete> CM:Map => CM[memId(Tid,Bn,In) <- 1] </complete>
-           </object>
-         ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2379,25 +2301,21 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-          <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-            <range> constant </range>
-            <addrSpace> Ad':Int </addrSpace>
-            <race> Races:Set (.Set => SetItem(
-                   singleMem(Tid, Bn, In, heap, value(Base,
-                 Base +Int Size)))) </race>
-            <complete> CM:Map => CM[memId(Tid,Bn,In) <- 1] </complete>
-          </object>
-         ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2408,26 +2326,22 @@ module LLVM-MEMORY
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+                 andBool Size =/=Int 1
                  andBool notBool (Base +Int Other) in keys(BM)
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad':Int </addrSpace>
-             <race> Races:Set (.Set => SetItem(
-                   singleMem(Tid, Bn, In, heap, value(Base,
-                 Base +Int Size)))) </race>
-             <complete> CM:Map => CM[memId(Tid,Bn,In) <- 1] </complete>
-            </object>
-         ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2435,29 +2349,27 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+                 andBool Size =/=Int 1
+                 andBool isInMemRange(MOL, Base, Size)
+          [transition]
 
     //non-atomic write: when the byte number is not one
      //and this is for the rest of the write to touch the mem
-    rule <memory> <channelId> CId </channelId>
-         <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
+    rule <memory>
+           <channelId> CId </channelId>
+           <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-            <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-              <addrSpace> Ad:Int </addrSpace>
-              <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-              <race> Races:Set </race>
-              <range> constant </range>
-            </object>
-         ...</objects>
+           <objects> Obj:Set => updateComInObjects(Base, Size, memId(Tid, Bn, In),
+          getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1, .K, Obj) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2465,24 +2377,19 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
                  andBool Size =/=Int 1
                  andBool notBool (Base +Int Other) in keys(BM)
+          [transition]
 
     rule <memory> <channelId> CId </channelId> 
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>...
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-             <race> Races:Set </race>
-             <range> heap </range>
-           </object>
-         ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size, memId(Tid, Bn, In),
+          getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1, .K, Obj) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2490,23 +2397,18 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
                  andBool Size =/=Int 1
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>... 
-          <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-            <addrSpace> Ad':Int </addrSpace>
-            <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-            <race> Races:Set </race>
-            <range> constant </range>
-          </object>
-         ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size, memId(Tid, Bn, In),
+          getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1, .K, Obj) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2517,24 +2419,19 @@ module LLVM-MEMORY
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
+                 andBool Size =/=Int 1
                  andBool notBool (Base +Int Other) in keys(BM)
+          [transition]
 
     rule <memory> <channelId> CId </channelId> 
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>... 
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-             <race> Races:Set </race>
-             <range> heap </range>
-           </object>
-         ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size, memId(Tid, Bn, In),
+          getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1, .K, Obj) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2542,27 +2439,25 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
+                 andBool Size =/=Int 1
+                 andBool isInMemRange(MOL, Base, Size)
+          [transition]
 
     //when the write byte op is the last one 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>... 
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <complete> CM:Map ((memId(Tid, Bn, In)
-                          |-> Count:K) => .Map) </complete>
-             <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race>
-             <range> constant </range>
-           </object>
-         ...</objects>
+         <objects> Obj:Set => removeEntryComInObjects(Base, Size, 
+               memId(Tid, Bn, In), .K, removeRaceInObjects(Base, Size,
+                      .K, Obj, Tid, Bn, In)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2570,24 +2465,20 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
                  andBool Size =/=Int 1
                  andBool notBool (Base +Int Other) in keys(BM)
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>... 
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <complete> CM:Map ((memId(Tid, Bn, In)
-                          |-> Count:K) => .Map) </complete>
-             <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race>
-             <range> heap </range>
-           </object>
-         ...</objects>
+         <objects> Obj:Set => removeEntryComInObjects(Base, Size, 
+               memId(Tid, Bn, In), .K, removeRaceInObjects(Base, Size,
+                      .K, Obj, Tid, Bn, In)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2595,23 +2486,19 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
                  andBool Size =/=Int 1
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>... 
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <complete> CM:Map ((memId(Tid, Bn, In)
-                          |-> Count:K) => .Map) </complete>
-             <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race>
-             <range> constant </range>
-           </object>
-         ...</objects>
+         <objects> Obj:Set => removeEntryComInObjects(Base, Size, 
+               memId(Tid, Bn, In), .K, removeRaceInObjects(Base, Size,
+                      .K, Obj, Tid, Bn, In)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2622,24 +2509,20 @@ module LLVM-MEMORY
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
+                 andBool Size =/=Int 1
                  andBool notBool (Base +Int Other) in keys(BM)
+          [transition]
 
     rule <memory> <channelId> CId </channelId>
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-         <objects>... 
-           <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <complete> CM:Map ((memId(Tid, Bn, In)
-                          |-> Count:K) => .Map) </complete>
-             <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race>
-             <range> heap </range>
-           </object>
-         ...</objects>
+         <objects> Obj:Set => removeEntryComInObjects(Base, Size, 
+               memId(Tid, Bn, In), .K, removeRaceInObjects(Base, Size,
+                      .K, Obj, Tid, Bn, In)) </objects>
          <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
          <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -2647,12 +2530,16 @@ module LLVM-MEMORY
                  msgByteWrite(Tid,Bn,In, Base, Other, Size, V)))) </channelOps>
          <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
          <byteMap> BM:Map => BM[Base +Int Other <- V] </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
+                 andBool Size =/=Int 1
+                 andBool isInMemRange(MOL, Base, Size)
+          [transition]
 
     //if there is a race condition
     rule <threads> TD:Bag => .Bag </threads>
@@ -2660,16 +2547,12 @@ module LLVM-MEMORY
             <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         writeAByte(T:K, V:K, V1:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) L:List => .List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-                   <race> Races:Set </race>
-             </object>
-         ...</objects>
+           <objects> Obj:Set </objects>
          </memory>
          <output>... .List =>
           ListItem("error: undefied behavior because two mem op races on the same location") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+            andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
 
     //non-atomic read in heap
     rule <threads> TD:Bag => .Bag </threads>
@@ -2683,33 +2566,6 @@ module LLVM-MEMORY
         requires notBool isInMemRange(MOL, Base, Size)
 
     //if there is only one byte
-/*
-    rule <readBack> readMap(RM:Map (varInstance(Bn, In)
-                 |-> readBackHold(X:K, loadHold(T':K, LL:List), Unf:K, Fl:K)))
-             => readMapAux(varInstance(Bn, In), readBackHold(X:K,
-                loadHold(T':K, insertToOrderList(Other, V, LL)), undef, Fl), RM) </readBack>
-         <threadId> Tid </threadId>
-         <memChannelId> CId </memChannelId>
-         <memory> 
-            <channelId> CId:K </channelId>
-            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
-                        readAByte(T:K, Base:Int,
-                  Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-            <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-              <addrSpace> Ad:Int </addrSpace>
-              <race> Races:Set </race>
-              <complete> CM:Map => updateCompleteCell(CM,
-                     Size, memId(Tid, Bn, In))  </complete>
-            </object>
-         ...</objects>
-            <byteMap>... Base +Int Other |-> V:K ...</byteMap>
-         </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
-          [transition]
-*/
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List), Unf:K, Fl:K)))
              => readMapAux(varInstance(Bn, In), readBackHold(X:K,
@@ -2720,14 +2576,10 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, 1, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad:Int </addrSpace>
-               <race> Races:Set </race> </object>
-           ...</objects>
+           <objects> Obj:Set </objects>
              <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         requires Base +Int 1 <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, 1, .K, Races)
+         requires matchAddrSpace(Base, 1, Ad, .K, Obj)
+            andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
           [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -2740,18 +2592,15 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, 1, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad':Int </addrSpace>
-                <race> Races:Set </race> </object>
-           ...</objects>
+           <objects> Obj:Set </objects>
            <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
+        <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int 1 <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, 1, .K, Races)
-                   andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, 1, Ad, .K, Obj)
+            andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
+            andBool isInMemRange(MOL, Base, 1)
           [transition]
 
     //when the bytes are not one
@@ -2766,22 +2615,41 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-            <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <race> Races:Set (.Set => SetItem(
-                   singleMem(Tid, Bn, In, heap, value(Base,
-                 Base +Int Size)))) </race>
-             <complete> CM:Map => CM[memId(Tid,Bn,In) <- 1] </complete>
-              </object>
-           ...</objects>
+          <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
            <timeStamps> TM:Map </timeStamps> 
            <channelOps> Chs:List </channelOps>
            <ackMap> Ack:Map </ackMap>
            <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+                 andBool Size =/=Int 1
+
+    rule <readBack> readMap(RM:Map (varInstance(Bn, In)
+                 |-> readBackHold(X:K, loadHold(T':K, LL:List), Unf:K, Fl:K)))
+             => readMapAux(varInstance(Bn, In), readBackHold(X:K,
+                loadHold(T':K, insertToOrderList(Other, V, LL)), undef, Fl), RM) </readBack>
+         <threadId> Tid </threadId>
+         <memChannelId> CId:K </memChannelId>
+         <memory>
+           <channelId> CId </channelId>
+           <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
+                        readAByte(T:K, Base:Int,
+                  Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
+          <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
+           <timeStamps> TM:Map </timeStamps> 
+           <channelOps> Chs:List </channelOps>
+           <ackMap> Ack:Map </ackMap>
+           <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -2794,23 +2662,41 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <race> Races:Set (.Set => SetItem(
-                   singleMem(Tid, Bn, In, heap, value(Base,
-                 Base +Int Size)))) </race>
-             <complete> CM:Map => CM[memId(Tid,Bn,In) <- 1] </complete>
-              </object>
-           ...</objects>
+          <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
            <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool notBool memId(Tid, Bn, In) in keys(CM)
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+                 andBool Size =/=Int 1
+
+    rule <readBack> readMap(RM:Map (varInstance(Bn, In)
+                 |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
+             => readMapAux(varInstance(Bn, In), readBackHold(X:K,
+                loadHold(T':K, insertToOrderList(Other, V, LL)),undef, Fl), RM) </readBack>
+         <threadId> Tid </threadId>
+         <memChannelId> CId:K </memChannelId>
+         <memory> MD:Bag <channelId> CId </channelId>
+           <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
+                        readAByte(T:K, Base:Int,
+                  Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
+          <objects> Obj:Set => updateComInObjects(Base, Size,
+               memId(Tid,Bn,In), 1, .K, updateRaceInObjects(Base, Size,
+                singleMem(Tid, Bn, In, heap, value(Base,
+                 Base +Int Size)), .K, Obj)) </objects>
+           <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
+         <output>... .List =>
+            ListItem("warning: input address space does not match with the address space of the memory.")
+         </output>
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+                 andBool Size =/=Int 1
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2822,41 +2708,13 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-            <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-             <race> Races:Set </race>
-            </object>
-           ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size, memId(Tid, Bn, In),
+          getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1, .K, Obj) </objects>
            <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size andBool Size =/=Int 1
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-
-    rule <readBack> readMap(RM:Map (varInstance(Bn, In)
-                 |-> readBackHold(X:K, loadHold(T':K, LL:List), Unf:K, Fl:K)))
-             => readMapAux(varInstance(Bn, In), readBackHold(X:K,
-                loadHold(T':K, insertToOrderList(Other, V, LL)), undef, Fl), RM) </readBack>
-         <threadId> Tid </threadId>
-         <memChannelId> CId:K </memChannelId>
-         <memory> MD:Bag <channelId> CId </channelId>
-           <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
-                        readAByte(T:K, Base:Int,
-                  Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-             <race> Races:Set </race>
-             </object>
-           ...</objects>
-           <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size andBool Size =/=Int 1
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
+                 andBool Size =/=Int 1
+                 andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2868,48 +2726,18 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-              <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad':Int </addrSpace>
-               <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-               <race> Races:Set </race> 
-             </object>
-           ...</objects>
+         <objects> Obj:Set => updateComInObjects(Base, Size, memId(Tid, Bn, In),
+          getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1, .K, Obj) </objects>
            <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-
-    rule <readBack> readMap(RM:Map (varInstance(Bn, In)
-                 |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
-             => readMapAux(varInstance(Bn, In), readBackHold(X:K,
-                loadHold(T':K, insertToOrderList(Other, V, LL)),undef, Fl), RM) </readBack>
-         <threadId> Tid </threadId>
-         <memChannelId> CId:K </memChannelId>
-         <memory> MD:Bag <channelId> CId </channelId>
-           <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int, heap,
-                        readAByte(T:K, Base:Int,
-                    Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad':Int </addrSpace>
-               <complete>... memId(Tid, Bn, In)
-                          |-> (Count:Int => Count +Int 1) ...</complete>
-               <race> Races:Set </race> </object>
-           ...</objects>
-           <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         <output>... .List =>
-            ListItem("warning: input address space does not match with the address space of the memory.")
-         </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 <Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
+                 andBool Size =/=Int 1
+                 andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+                 andBool isInMemRange(MOL, Base, Size)
 
     //when finishing reading all bytes
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -2922,41 +2750,14 @@ module LLVM-MEMORY
          <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad:Int </addrSpace>
-               <complete> (CM:Map (memId(Tid, Bn, In)
-                          |-> Count:K)) => CM </complete>
-               <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race> </object>
-           ...</objects>
+         <objects> Obj:Set => removeEntryComInObjects(Base, Size, 
+               memId(Tid, Bn, In), .K, removeRaceInObjects(Base, Size,
+                      .K, Obj, Tid, Bn, In)) </objects>
            <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
                  andBool Size =/=Int 1
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-
-    rule <readBack> readMap(RM:Map (varInstance(Bn, In)
-                 |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
-             => readMapAux(varInstance(Bn, In), readBackHold(X:K,
-                loadHold(T':K, insertToOrderList(Other, V, LL)),undef, Fl), RM) </readBack>
-         <threadId> Tid </threadId>
-         <memChannelId> CId:K </memChannelId>
-         <memory> MD:Bag <channelId> CId </channelId>
-           <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
-                        readAByte(T:K, Base:Int,
-                  Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad:Int </addrSpace>
-               <complete> (CM:Map (memId(Tid, Bn, In)
-                          |-> Count:K)) => CM </complete>
-               <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race> </object>
-           ...</objects>
-           <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
-                 andBool Size =/=Int 1
-                 andBool isOverlap(Base, Size, .K, Races)
+                 andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2968,47 +2769,18 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         readAByte(T:K, Base:Int,
                   Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-              <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad':Int </addrSpace>
-               <complete> CM:Map ((memId(Tid, Bn, In)
-                          |-> Count:K) => .Map) </complete>
-               <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race> </object>
-           ...</objects>
+         <objects> Obj:Set => removeEntryComInObjects(Base, Size, 
+               memId(Tid, Bn, In), .K, removeRaceInObjects(Base, Size,
+                      .K, Obj, Tid, Bn, In)) </objects>
            <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-
-    rule <readBack> readMap(RM:Map (varInstance(Bn, In)
-                 |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
-             => readMapAux(varInstance(Bn, In), readBackHold(X:K,
-                loadHold(T':K, insertToOrderList(Other, V, LL)),undef, Fl), RM) </readBack>
-         <threadId> Tid </threadId>
-         <memChannelId> CId:K </memChannelId>
-         <memory> MD:Bag <channelId> CId </channelId>
-           <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
-                        readAByte(T:K, Base:Int,
-                  Other:Int, Size:Int, Ad:Int))) => .List) L:List </memOpList>
-           <objects>...
-             <object> Obj:Bag <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-               <addrSpace> Ad':Int </addrSpace>
-               <complete> CM:Map ((memId(Tid, Bn, In)
-                          |-> Count:K) => .Map) </complete>
-               <race> Races:Set => removeRaceInSet(Races,.K, Tid, Bn, In) </race> </object>
-           ...</objects>
-           <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
-         <output>... .List =>
-            ListItem("warning: input address space does not match with the address space of the memory.")
-         </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Count +Int 1 >=Int Size
-                 andBool Size =/=Int 1 andBool Ad =/=K Ad'
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
+                 andBool Size =/=Int 1
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
 
     //atomic write in stack
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
@@ -3354,10 +3126,7 @@ module LLVM-MEMORY
                   Size:Int, Ad:Int, seq_cst)))
              => ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <range> constant </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3365,18 +3134,16 @@ module LLVM-MEMORY
                  msgWrite(Tid,Bn,In, Base, Size, V, seq_cst)))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base, V) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <memory> <channelId> CId </channelId>
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-            <addrSpace> Ad:Int </addrSpace>
-            <range> constant </range>
-            <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3384,8 +3151,9 @@ module LLVM-MEMORY
                  msgWrite(Tid,Bn,In, Base, Size, V, Order)))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base, V) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool isChunckWritten(BM, Base, Base +Int Size)
                  andBool Order =/=K seq_cst
 
@@ -3395,10 +3163,7 @@ module LLVM-MEMORY
                   Size:Int, Ad:Int, seq_cst)))
              => ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-            <addrSpace> Ad:Int </addrSpace>
-            <range> heap </range>
-            <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3406,17 +3171,15 @@ module LLVM-MEMORY
                  msgWrite(Tid,Bn,In, Base, Size, V, seq_cst)))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base, V) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
 
     rule <memory> <channelId> CId </channelId>
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <range> heap </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3424,8 +3187,9 @@ module LLVM-MEMORY
                  msgWrite(Tid,Bn,In, Base, Size, V, Order)))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base, V) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool Order =/=K seq_cst
 
     rule <threads> TD:Bag => .Bag </threads>
@@ -3443,17 +3207,14 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) L:List => .List) </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> constant </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
          <output>... .List =>
             ListItem("atomic write a byte in a heap constant field that has been initialized.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool isChunckWritten(BM, Base, Base +Int Size)
-                 andBool Order =/=K seq_cst
 
     rule <memory> <channelId> CId </channelId>
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
@@ -3461,10 +3222,7 @@ module LLVM-MEMORY
                   Size:Int, Ad:Int, seq_cst)))
              => ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <range> constant </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3475,19 +3233,16 @@ module LLVM-MEMORY
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <memory> <channelId> CId </channelId>
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <range> constant </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1, TM (CId |-> MsgN +Int 1),
@@ -3497,10 +3252,9 @@ module LLVM-MEMORY
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right
-                     andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool isChunckWritten(BM, Base, Base +Int Size)
                  andBool Order =/=K seq_cst
 
@@ -3510,10 +3264,7 @@ module LLVM-MEMORY
                   Size:Int, Ad:Int, seq_cst)))
              => ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <range> heap </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3521,46 +3272,44 @@ module LLVM-MEMORY
                  msgWrite(Tid,Bn,In, Base, Size, V, seq_cst)))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base, V) </byteMap> </memory>
+        <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                  andBool isInMemRange(MOL, Base, Size)
 
     rule <memory> <channelId> CId </channelId>
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicWrite(T:K, V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <range> heap </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1, TM (CId |-> MsgN +Int 1),
                  msgWrite(Tid,Bn,In, Base, Size, V, Order)))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base, V) </byteMap> </memory>
+        <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool Order =/=K seq_cst
+                  andBool isInMemRange(MOL, Base, Size)
 
     rule <threads> Td:Bag => .Bag </threads>
          <memory> MD:Bag
            <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicWrite(T:K,V:K, V1:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) L:List => .List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <race> Races:Set </race>
-            ...</object> </memory>
+         <objects> Obj:Set </objects> </memory>
           <output>... .List => ListItem("error: undefied behavior because an atomic mem op happens at the middle of an non-atomic mem op.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
 
     //atomic read write in heap
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -3578,10 +3327,7 @@ module LLVM-MEMORY
                       heap, none, InR:K)))))
                  => ListItem(singleMem(Tid:Int, Bn:Int,
                           In:Int,heap,msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <range> heap </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3591,8 +3337,9 @@ module LLVM-MEMORY
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                            region(getMemWithAtomic(BM, Base, 0, Size), T')) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) ==K 1
@@ -3610,10 +3357,7 @@ module LLVM-MEMORY
             V:K, loc(Base:Int, pointerTypeValue(Type, Ad':Int),
                       value(Left:Int, Right:Int),
                       heap, none, InR:K))))) => .List ) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <range> heap </range>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3623,8 +3367,9 @@ module LLVM-MEMORY
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                        region(getMemWithAtomic(BM, Base, 0, Size), T')) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) ==K 1
@@ -3634,11 +3379,10 @@ module LLVM-MEMORY
          <memory> MD:Bag <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicReadWrite(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K, Next:K))) L:List => .List) </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> constant </range> ...</object> </memory>
+           <objects> Obj:Set </objects> </memory>
         <output>... .List
             => ListItem("error: atomicrmw or cmpxchg op cannot work on constant heap location.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires isConstantObject(Base, Size, .K, Obj)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, .List), Unf:K, Fl:K)))
@@ -3655,10 +3399,7 @@ module LLVM-MEMORY
                       heap, none, InR:K)))))
                  => ListItem(singleMem(Tid:Int, Bn:Int,
                           In:Int,heap,msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad1:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3668,15 +3409,17 @@ module LLVM-MEMORY
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                            region(getMemWithAtomic(BM, Base, 0, Size), T')) </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Ad =/=K Ad1
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) ==K 1
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, .List), Unf:K, Fl:K)))
@@ -3691,10 +3434,7 @@ module LLVM-MEMORY
               V:K, loc(Base:Int, pointerTypeValue(Type, Ad':Int),
                       value(Left:Int, Right:Int),
                       heap, none, InR:K))))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad1:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3704,16 +3444,18 @@ module LLVM-MEMORY
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                        region(getMemWithAtomic(BM, Base, 0, Size), T')) </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Ad =/=K Ad1
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) ==K 1
                  andBool Order =/=K seq_cst
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, .List),Unf:K, Fl:K)))
@@ -3728,13 +3470,11 @@ module LLVM-MEMORY
               V:K, loc(Base:Int, pointerTypeValue(Type, Ad':Int),
                       value(Left:Int, Right:Int),
                       heap, none, InR:K))))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) =/=K 1
@@ -3753,21 +3493,20 @@ module LLVM-MEMORY
               V:K, loc(Base:Int, pointerTypeValue(Type, Ad':Int),
                       value(Left:Int, Right:Int),
                       heap, none, InR:K))))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad1:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool Ad =/=K Ad1
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool applyIcmp(eq, T2,
                 joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), CV) =/=K 1
                  andBool Order =/=K seq_cst
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, .List), Unf:K, Fl:K)))
@@ -3782,10 +3521,7 @@ module LLVM-MEMORY
                       value(Left:Int, Right:Int), heap, none, InR:K)))))
                 => ListItem(singleMem(Tid:Int, Bn:Int,
                           In:Int,heap,msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3797,8 +3533,9 @@ module LLVM-MEMORY
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                            region(applyAtomicrmwInt(Op, T2,
                    joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), V), T2)) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -3813,10 +3550,7 @@ module LLVM-MEMORY
             V:K, loc(Base:Int, pointerTypeValue(Type, Ad':Int),
                       value(Left:Int, Right:Int), heap, none, InR:K)))))
                 => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3828,8 +3562,9 @@ module LLVM-MEMORY
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                            region(applyAtomicrmwInt(Op, T2,
                    joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), V), T2)) </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
                  andBool Order =/=K seq_cst
 
@@ -3847,10 +3582,7 @@ module LLVM-MEMORY
                       heap, none, InR:K)))))
                 => ListItem(singleMem(Tid:Int, Bn:Int,
                           In:Int,heap,msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad1:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3862,13 +3594,15 @@ module LLVM-MEMORY
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                            region(applyAtomicrmwInt(Op, T2,
                    joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), V), T2)) </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
-                 andBool Ad =/=K Ad1
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, .List), Unf:K, Fl:K)))
@@ -3883,10 +3617,7 @@ module LLVM-MEMORY
                       value(Left:Int, Right:Int),
                       heap, none, InR:K)))))
                 => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <range> heap </range>
-             <addrSpace> Ad1:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
@@ -3898,27 +3629,25 @@ module LLVM-MEMORY
            <byteMap> BM:Map => updateMemWithAtomic(BM, Base,
                            region(applyAtomicrmwInt(Op, T2,
                    joinBytes(T',getMemWithAtomic(BM, Base, 0, Size)), V), T2)) </byteMap> </memory>
+          <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isConstantObject(Base, Size, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool sizeof(T') ==K size(getMemWithAtomic(BM, Base, 0, Size))
-                 andBool Ad =/=K Ad1
                  andBool Order =/=K seq_cst
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <threads> TD:Bag => .Bag </threads>
          <memory> MD:Bag <channelId> CId </channelId>
            <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicReadWrite(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K, Next:K))) L:List => .List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <race> Races:Set </race>
-             <range> heap </range>
-            ...</object> </memory>
+           <objects> Obj:Set </objects> </memory>
         <output>... .List => ListItem("error: undefied behavior because an atomic mem op happens at the middle of an non-atomic mem op -- race condition.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
 
     //atomic read in heap
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -3932,17 +3661,15 @@ module LLVM-MEMORY
                   Size:Int, Ad:Int, seq_cst)))
                    => ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
                    TM (CId |-> MsgN +Int 1), msgSeqFence))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool isChunckWritten(BM, Base, Base +Int Size)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -3954,12 +3681,10 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicRead(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool isChunckWritten(BM, Base, Base +Int Size)
                  andBool Order =/=K seq_cst
 
@@ -3974,22 +3699,21 @@ module LLVM-MEMORY
                   Size:Int, Ad:Int, seq_cst))) 
                    => ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         msgWait(MsgN +Int 1)))) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <timeStamps> TM:Map (CId |-> (MsgN:Int => MsgN +Int 1)) </timeStamps>
            <channelOps> ChanOps:List (.List => ListItem(
                sendToAll(CId, 0, maxMemChannel, MsgN +Int 1,
                    TM (CId |-> MsgN +Int 1), msgSeqFence))) </channelOps>
            <ackMap> AckM:Map => AckM[MsgN +Int 1 <- 0] </ackMap>
            <byteMap> BM:Map </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K,  getRace(Base, Size, .K, Obj))
                  andBool isChunckWritten(BM, Base, Base +Int Size)
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, .List), Unf:K, .K)))
@@ -4000,43 +3724,39 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicRead(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
+         <memoryList> MOL:List </memoryList>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the memory.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                 andBool Ad =/=K Ad'
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool isChunckWritten(BM, Base, Base +Int Size)
                  andBool Order =/=K seq_cst
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <threads> TD:Bag => .Bag </threads>
+         <memoryList> MOL:List </memoryList>
          <memory> MD:Bag 
            <memOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicRead(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
         <output>... .List => ListItem("undefied behavior because atomic loading a heap that has not been initialized fully.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool isChunckWritten(BM, Base, Base +Int Size)
+                 andBool isInMemRange(MOL, Base, Size)
 
     rule <threads> TD:Bag => .Bag </threads>
          <memory> MD:Bag
            <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         atomicRead(T:K, Base:Int,
                   Size:Int, Ad:Int, Order:K))) L:List => .List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <race> Races:Set </race>
-            ...</object> </memory>
+        <objects> Obj:Set </objects> </memory>
         <output>... .List => ListItem("error: undefied behavior because an atomic mem op happens at the middle of an non-atomic mem op -- race condition.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
 
     rule <threads> TD:Bag => .Bag </threads>
          <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
@@ -4063,25 +3783,20 @@ module LLVM-MEMORY
            <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         memmoveRead(Base:Int,
                   Size:Int, Ad:Int, Order:K))) L:List => .List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <race> Races:Set </race>
-            ...</object>
+         <memoryList> MOL:List </memoryList>
            <byteMap> BM:Map </byteMap> </memory>
         <output>... .List => ListItem("undefied behavior because atomic loading a heap that has not been initialized fully.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool notBool isChunckWritten(BM, Base, Base +Int Size)
+         requires notBool isChunckWritten(BM, Base, Base +Int Size)
+                      andBool isInMemRange(MOL, Base, Size)
 
     rule <threads> TD:Bag => .Bag </threads>
          <memory> MD:Bag 
            <memOpList> ListItem(singleMem(Tid:Int, Bn:Int, In:Int,heap,
                         memmoveRead(Base:Int,
                   Size:Int, Ad:Int, Order:K))) L:List => .List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <race> Races:Set </race>
-            ...</object> </memory>
+           <objects> Obj:Set </objects> </memory>
         <output>... .List => ListItem("error: undefied behavior because an atomic mem op happens at the middle of an non-atomic mem op -- race condition.") </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isOverlap(Base, Size, .K, Races)
+         requires isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
 
     rule <k> staticLoadHold(T:K)
                => region(getMemWithAtomic(BM, Base, 0, Size), Size) ...</k>
@@ -4092,35 +3807,32 @@ module LLVM-MEMORY
            <memOpList> (ListItem(singleMem(TID:Int, Bn:Int, In:Int,heap,
                         memmoveRead(Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad:Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
-                 andBool isChunckWritten(BM, Base, Base +Int Size)
-                 andBool notBool isOverlap(Base, Size, .K, Races)
+         requires isChunckWritten(BM, Base, Base +Int Size)
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool matchAddrSpace(Base, Size, Ad, .K, Obj)
 
     rule <k> staticLoadHold(T:K)
                => region(getMemWithAtomic(BM, Base, 0, Size), Size) ...</k>
          <threadId> TID </threadId>
          <currBlock> basicBlockNum(BN:Int, _:K) </currBlock>
          <memChannelId> CId:K </memChannelId>
+         <memoryList> MOL:List </memoryList>
          <memory> MD:Bag
            <channelId> CId </channelId>
            <memOpList> (ListItem(singleMem(TID:Int, Bn:Int, In:Int,heap,
                         memmoveRead(Base:Int,
                   Size:Int, Ad:Int, Order:K))) => .List) L:List </memOpList>
-           <object>... <chunckRange> value(Left:Int, Right:Int) </chunckRange>
-             <addrSpace> Ad':Int </addrSpace>
-             <race> Races:Set </race> ...</object>
+           <objects> Obj:Set </objects>
            <byteMap> BM:Map </byteMap> </memory>
          <output>... .List =>
             ListItem("warning: input address space does not match with the address space of the stack.")
          </output>
-         requires Base +Int Size <=Int Right andBool Base >=Int Left
+         requires notBool matchAddrSpace(Base, Size, Ad, .K, Obj)
                  andBool isChunckWritten(BM, Base, Base +Int Size)
-                 andBool notBool isOverlap(Base, Size, .K, Races)
-                  andBool Ad =/=K Ad'
+                 andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
+                 andBool isInMemRange(MOL, Base, Size)
 
 endmodule
 
