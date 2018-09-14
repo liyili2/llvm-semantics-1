@@ -8,6 +8,16 @@ module LLVM-HELPERS
     imports LLVM-ABSTRACTSYNTAX
     imports LLVM-SETTINGS
 
+    //get a single block defs inside from insts
+    syntax Set ::= getDefVarsInBody(K, Map) [function]
+    rule getDefVarsInBody(.K, .Map) => .Set
+    rule getDefVarsInBody(.K, (A:K |-> B:K) M:Map)
+           => getDefVarsInBody(B, M)
+    rule getDefVarsInBody(instNumInfo(A:Int, noAssign(B:K), C:K), M:Map)
+         => getDefVarsInBody(.K, M)
+    rule getDefVarsInBody(instNumInfo(A:Int, assign(C:K, D:K), B:K), M:Map)
+         => SetItem(C) getDefVarsInBody(.K, M)
+
     //deal with zeroinitializer
     syntax KItem ::= dealWithZero(K, K) [function] //t,v
     rule dealWithZero(T:K, zeroinitializer)
@@ -4330,22 +4340,27 @@ module LLVM-HELPERS
               => getAllChildrenAux(A,.K, M) getAllChildren(S, M)
 
     syntax Map ::= cutOffWrongBranches(Int, Int, Map)  [function]
-                 | cutOffWrongBranchesAux(Int, K, Set, Map) [function]
+                 | cutOffWrongBranchesAux(Int, K, Set, Map, Map) [function]
                //kept child, runblock, Map
     rule cutOffWrongBranches(Fa:Int, Chi:Int, M:Map)
-            => cutOffWrongBranchesAux(Chi, .K, getAllChildrenAux(Fa, .K, M), M)
+            => cutOffWrongBranchesAux(Chi, .K, getAllChildrenAux(Fa, .K, M), M, M)
+         requires isFather(Fa, Chi, M)
+    rule cutOffWrongBranches(Fa:Int, Chi:Int, (Fa |-> R:K) M:Map)
+           => (Fa |-> R:K)
+         requires notBool isFather(Fa, Chi, M)
 
-    rule cutOffWrongBranchesAux(Chi:Int, .K, .Set, M:Map) => M
-    rule cutOffWrongBranchesAux(Chi:Int, .K, SetItem(A:K) S:Set, M:Map)
-          => cutOffWrongBranchesAux(Chi, A, S, M)
-    rule cutOffWrongBranchesAux(Chi:Int, Chi, S:Set, M:Map)
-          => cutOffWrongBranchesAux(Chi, .K, S, M)
-    rule cutOffWrongBranchesAux(Chi:Int, C:Int, S:Set, (C |-> D:K) M:Map)
-          => cutOffWrongBranchesAux(Chi, .K, S, M)
-         requires Chi =/=K C
-    rule cutOffWrongBranchesAux(Chi:Int, C:Int, S:Set, M:Map)
-          => cutOffWrongBranchesAux(Chi, .K, S, M)
-         requires Chi =/=K C andBool notBool C in keys(M)
+    rule cutOffWrongBranchesAux(Chi:Int, .K, .Set, M:Map, T:Map) => M
+    rule cutOffWrongBranchesAux(Chi:Int, .K, SetItem(A:K) S:Set, M:Map, T:Map)
+          => cutOffWrongBranchesAux(Chi, A, S, M, T)
+    rule cutOffWrongBranchesAux(Chi:Int, Chi':Int, S:Set, M:Map, T:Map)
+          => cutOffWrongBranchesAux(Chi, .K, S, M, T)
+          requires isFather(Chi, Chi', T)
+    rule cutOffWrongBranchesAux(Chi:Int, C:Int, S:Set, (C |-> D:K) M:Map, T:Map)
+          => cutOffWrongBranchesAux(Chi, .K, S, M, T)
+          requires notBool isFather(Chi, C, T)
+    rule cutOffWrongBranchesAux(Chi:Int, C:Int, S:Set, M:Map, T:Map)
+          => cutOffWrongBranchesAux(Chi, .K, S, M, T)
+         requires notBool C in keys(M)
 
 
     //get rid of mem inst that is not in the specTree
@@ -4894,32 +4909,20 @@ module LLVM-HELPERS
 
    //determine if the current blockexecution need to stay
    syntax KItem ::= checkToKillBlockEx(K, K, Set, Map, Map) [function]
-   rule checkToKillBlockEx(New:K, blockExecution(OldId:K, BE:List),
+   rule checkToKillBlockEx(New:K, blockExecution(basicBlockNum(OldId:Int, N:K), BE:List),
                S:Set, Rev:Map, RM:Map)
-          => blockExecution(OldId:K, BE:List)
+          => blockExecution(basicBlockNum(OldId:Int, N:K), BE:List)
         requires OldId in S
-   rule checkToKillBlockEx(New:Int, blockExecution(OldId:K, BE:List),
+   rule checkToKillBlockEx(New:Int, blockExecution(basicBlockNum(OldId:Int, N:K), BE:List),
             S:Set, Rev:Map, RM:Map)
                   => findNewSpec(findNextBlock(New, .K, .K, Rev, RM))
         requires notBool OldId in S
    rule checkToKillBlockEx(New:K, B:K, S:Set, Rev:Map, RM:Map) => .K [owise]
 
    //get all children of a root block num including the block
-   syntax Set ::= getChildrenOfBlock(K, K, Map) [function]
-                | getChildrenOfBlockAux(K, Set, Map) [function]
-   rule getChildrenOfBlock(A:K, .K, M:Map) => SetItem(A)
-        requires notBool A in keys(M)
-   rule getChildrenOfBlock(A:K, .K, (A |-> B:K) M:Map)
-          => getChildrenOfBlock(A, B, M)
-   rule getChildrenOfBlock(A:K, runBlock(Bn:Int, Name:K,
-              Fa:Int, L:List, Vars:Set, Cs:Set), M:Map)
-         => SetItem(A) getChildrenOfBlockAux(.K, Cs, M)
-   rule getChildrenOfBlockAux(.K, .Set, M:Map) => .Set
-   rule getChildrenOfBlockAux(.K, SetItem(A:K) S:Set, M:Map)
-         => getChildrenOfBlockAux(A, S, M)
-   rule getChildrenOfBlockAux(A:Int, S:Set, M:Map)
-          => getChildrenOfBlock(A, S, M)
-              getChildrenOfBlockAux(.K, S, M)
+   syntax Set ::= getChildrenOfBlock(K, Map) [function]
+   rule getChildrenOfBlock(A:Int, M:Map)
+                => SetItem(A) getAllChildrenAux(A, .K, M)
 
    //get a spec map that does not include the old root and 
     //other spec branches that are not selected (new root exlcuding).
@@ -6988,16 +6991,16 @@ module LLVM-HELPERS
 
     rule getAllMemProtosList(Chi:Int, .List) => .List
     rule getAllMemProtosList(Chi:Int, L:List ListItem(memProto(
-                       In, A:K, (Chi |-> Op:K) B:Map, true)))
+                       In, A:K, (Chi |-> Op:K) B:Map, false)))
           => getAllMemProtosListAux(L) ListItem(memProto(
-                       In, Op, B:Map, true))
+                       In, Op, B:Map, false))
      rule getAllMemProtosList(Chi:Int, L:List ListItem(memProto(
-                       In, A:K, .Map, false)))
+                       In, A:K, .Map, true)))
           => getAllMemProtosListAux(L)
     rule getAllMemProtosList(Chi:Int, L:List ListItem(memProto(
-                       In, A:K, B:Map, true)))
+                       In, A:K, B:Map, false)))
           => getAllMemProtosListAux(L) ListItem(memProto(
-                       In, A:K, B:Map, true)) [owise]
+                       In, A:K, B:Map, false)) [owise]
 
     rule getAllMemProtosListAux(.List) => .List
     rule getAllMemProtosListAux(ListItem(memProto(

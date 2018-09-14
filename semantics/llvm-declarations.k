@@ -164,7 +164,7 @@ module LLVM-DECLARATIONS
         <specTree> M:Map => M[Count <-
                        runBlock(Count, Label, none,
                      formMemList(Count, formInstList(1, .K, Body), getCoreVaLog(VaLoc)),
-                 getVarsFromVarOp(.K, OutDefs -Set InDefs), .Set)] </specTree>
+                 getDefVarsInBody(.K, Body), .Set)] </specTree>
         <vaList> VaLoc:K </vaList>
         <currModule> ModName:SymbolicValueRef </currModule>
         <funModuleName> ModName </funModuleName>

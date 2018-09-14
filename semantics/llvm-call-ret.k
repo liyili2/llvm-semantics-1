@@ -168,6 +168,7 @@ module LLVM-CALL-RET
             MemL:List, (Defs:Set => Defs getDefVar(In)), Childs:Set)) </specTree>
          <currBlock> basicBlockNum(CurN:Int, CurLabel:K) </currBlock>
          requires size(InQueue) <Int numOfMaxInQueue andBool T =/=K terminators
+                  andBool N -Int CurN <Int maxSpecGap
          [transition]
 
     //this rule is to do a speculative move by guessing a next block to execute.
@@ -186,7 +187,7 @@ module LLVM-CALL-RET
          <specTree> Rev:Map => 
              updateVarInSpecTree(formMemListWithMem(Count, guessNextBlock(In), N,
                     formInstList(1, .K, Body), getCoreVaLog(VaLoc),
-                  getVarsFromVarOp(.K, OutDef -Set InDef),
+                           getDefVarsInBody(.K, Body),
                        addChildToKey(Rev, N, Count)), BN, .K,.K, M',M, Rev) </specTree>
          <restChoice> RM:Map => RM[N:Int <- nextSpecs(getRestBlocks(In, .K,
                   (guessNextBlock(In) |-> blockContent(Body, Flag,
@@ -231,8 +232,8 @@ module LLVM-CALL-RET
                  ...</toExecute>
          <specTree> Rev:Map => cutOffWrongBranches(OldCount, NewCount,
                     formMemListWithMem(Count, Name, Fa,
-             formInstList(1, .K, Body), getCoreVaLog(VaLoc), getVarsFromVarOp(.K,
-            OutDef -Set InDef), addChildToKey(Rev, Fa, Count))) </specTree>
+             formInstList(1, .K, Body), getCoreVaLog(VaLoc), getDefVarsInBody(.K, Body),
+                    addChildToKey(Rev, Fa, Count))) </specTree>
          <restChoice> RM:Map => updateChoiceInMap(RM,Fa,Cs) </restChoice>
          <vaList> VaLoc:K </vaList>
          <currBlock> blockHold(basicBlockNum(BN:Int, CurLabel:K)) </currBlock>
@@ -253,8 +254,8 @@ module LLVM-CALL-RET
             selectPhis(Fa, getFatherName(Fa, Rev), formInstList(1, .K, Body)))
                  ...</toExecute>
          <specTree> Rev:Map => formMemListWithMem(Count, Name, Fa,
-             formInstList(1, .K, Body), getCoreVaLog(VaLoc), getVarsFromVarOp(.K,
-            OutDef -Set InDef), addChildToKey(Rev, Fa, Count)) </specTree>
+             formInstList(1, .K, Body), getCoreVaLog(VaLoc), getDefVarsInBody(.K, Body),
+                  addChildToKey(Rev, Fa, Count)) </specTree>
          <restChoice> RM:Map => updateChoiceInMap(RM,Fa,Cs) </restChoice>
          <vaList> VaLoc:K </vaList>
          <currBlock> basicBlockNum(BN:Int, CurLabel:K) </currBlock>

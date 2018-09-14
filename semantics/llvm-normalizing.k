@@ -3716,8 +3716,22 @@ module LLVM-NORMALIZING
         <functionName> FunName </functionName>
          <basicBlocks>... B |-> 
               blockContent(_:Map, _:Bool, _:Set, _:Set,
-                                        InDef:Set, InUse:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
+                InDef:Set, InUse:Set, _:Set, _:Set, _:Set) ...</basicBlocks>
         requires B in S2 andBool Def <=Set InDef andBool Use <=Set InUse
+
+    rule <k> calDefUse(A:KItem,Def, Use, Nexts, B:KItem, S1:Set, S2:Set)
+              => calDefUse(A:KItem,Def, Use, Nexts, .K,
+                              SetItem(B) S1, S2 -Set SetItem(B)) ...</k>
+        <currModule> ModName:SymbolicValueRef </currModule>
+        <funModuleName> ModName </funModuleName>
+        <currFunction> FunName:SymbolicValueRef </currFunction>
+        <functionName> FunName </functionName>
+         <basicBlocks>... B |-> 
+              blockContent(_:Map, _:Bool, _:Set, _:Set,
+                (InDef:Set => InDef Def),
+                (InUse:Set => InUse Use), (OutDef:Set => OutDef Def),
+                (OutUse:Set => OutUse Use), _:Set) ...</basicBlocks>
+        requires B in S2 andBool notBool (Def <=Set InDef andBool Use <=Set InUse)
 
     rule <k> calDefUse(A:KItem, Def, Use, Nexts, B:KItem, S1:Set, S2:Set)
               => calDefUse(A:KItem, Def, Use, Nexts, .K, SetItem(B) S1:Set, S2:Set) ...</k>
@@ -3727,10 +3741,10 @@ module LLVM-NORMALIZING
         <functionName> FunName </functionName>
          <basicBlocks>... B |-> 
               blockContent(_:Map, _:Bool, _:Set, _:Set, (InDef:Set => InDef Def),
-                (InUse:Set => InUse Use), (OutDef:Set => OutDef Def), (OutUse:Set => OutUse Use), _:Set)
+                (InUse:Set => InUse Use), (OutDef:Set => OutDef Def),
+                   (OutUse:Set => OutUse Use), _:Set)
          ...</basicBlocks>
          requires notBool (B in S2)
-             orBool (B in S2 andBool ((notBool Def <=Set InDef) orBool (notBool Use <=Set InUse)))
 
     //in the checkSingleAssignment and checkSingleAssignmentInBlock
     //to add addNameToString to every positioins where show Type and ValueRef

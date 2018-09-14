@@ -45,8 +45,8 @@ module LLVM-BRANCHING
         <specTree> Cho:Map => cutOffWrongBranches(OldCount, Count,
                formMemListWithMem(Count, Name, OldCount,
            selectPhis(OldCount,Name,formInstList(1, .K, Body)),
-                  getCoreVaLog(VaLoc), getVarsFromVarOp(.K,
-            OutDef -Set InDef), addChildToKey(Cho, OldCount, Count))) </specTree>
+                  getCoreVaLog(VaLoc), getDefVarsInBody(.K, Body),
+             addChildToKey(Cho, OldCount, Count))) </specTree>
         <specRegisters> SRM:Map => .Map </specRegisters>
         <registers> RM:Map => updateMapByMap(RM, .K, .K,
                             getNewRootSpecMap(OldCount, .K, .K, SRM)) </registers>
@@ -68,11 +68,11 @@ module LLVM-BRANCHING
         <toExecute> BlockEx:K => blockHold(checkToKillBlockEx(getBlockNum(
                name(Label:K, S:String),OldCount, .K, Cho), BlockEx,
             getChildrenOfBlock(getBlockNum(
-               name(Label:K, S:String),OldCount, .K, Cho),.K,Cho),Cho, RestM)) </toExecute>
+               name(Label:K, S:String),OldCount, .K, Cho),Cho),Cho, RestM)) </toExecute>
         <instQueue> instList(Insts:List)
                => instList(getNewSpecOps(getChildrenOfBlock(getBlockNum(
                name(Label:K, S:String),OldCount, .K, Cho)
-                    ,.K,Cho),.K,Insts)) </instQueue>
+                    ,Cho),.K,Insts)) </instQueue>
         <currBlock> basicBlockNum(OldCount:Int, Name:K)
             => blockHold(basicBlockNum(getBlockNum(name(Label:K, S:String),
                OldCount, .K, Cho), name(Label:K, S:String))) </currBlock>
@@ -81,7 +81,7 @@ module LLVM-BRANCHING
         <specRegisters> SRM:Map => getNewSpecMap(OldCount,
            getChildrenOfBlock(getBlockNum(
                name(Label:K, S:String),OldCount, .K, Cho)
-                    ,.K ,Cho), .K, .K, SRM) </specRegisters>
+                    ,Cho), .K, .K, SRM) </specRegisters>
         <registers> RM:Map => updateMapByMap(RM, .K, .K,
                            getNewRootSpecMap(getBlockNum(
                name(Label:K, S:String),OldCount, .K, Cho), .K, .K, SRM)) </registers>
