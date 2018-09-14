@@ -4216,7 +4216,14 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
             => vaClose(V1)
         ...</k>
 
-    rule <k> call(_, calleeValue(funptr(name(globalVar, "exit")), V:K))
+    rule <threads> <thread>...
+            <k> call(_, calleeValue(funptr(name(globalVar, "abort")), .ElemList))
+              ~> K:K </k> ...</thread> TD:Bag => .Bag </threads>
+         <output>... .List =>
+            ListItem("abort function happens, this is core dumped.")
+         </output>
+
+    rule <k> call(_, calleeValue(funptr(name(globalVar, "exit")), valValue(V:KResult)))
             => .K ...</k>
         (.Bag => <result><returnValue> V </returnValue></result>)
 

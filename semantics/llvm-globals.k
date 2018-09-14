@@ -209,6 +209,8 @@ module LLVM-GLOBALS
                  i(8) ('addrEmpty(.KList))* .ParamAttrs), name(globalVar, "llvm.va_copy"))),
         val(typeOperand('functionType(void,, i(8) ('addrEmpty(.KList))* .ParamAttrs),
                 name(globalVar, "llvm.va_end"))),
+        val(typeOperand('functionType(void,, 'argListUnit(.KList)),
+                name(globalVar, "abort"))),
            val(typeOperand('functionType(i(64),,
                      i(64) .ParamAttrs, vaListType), name(globalVar, "__syscall"))),
             val(typeOperand('functionType(i(32),, i(8) ('addrEmpty(.KList))* .ParamAttrs,
