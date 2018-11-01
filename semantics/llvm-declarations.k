@@ -34,7 +34,9 @@ module LLVM-DECLARATIONS
             ~> (Typedefs
             ~> (GlobalVars
             ~> (Aliases
-            ~> Functions)))
+            ~> (Functions
+            ~> (initGlobals
+            ~> nextCheckPoint)))))
         ...</k>
         <currModule> _ => Label </currModule>
         <modules>...
@@ -61,11 +63,22 @@ module LLVM-DECLARATIONS
     rule types(L:ElemList) => L
     //rule funptr(A:SymbolicValueRef) => A
 
-    rule
-        <k> functionDef(Attributes:Set,RetType:KResult, Label:SymbolicValueRef, Arguments:KResult, F:K)
-            => setInitBlock(F) ~> checkSingleAssignment(F) ...</k>
+    rule <k> nextCheckPoint => .K ...</k>
+         <functionsToCheck> .List </functionsToCheck>
+
+    rule <k> nextCheckPoint => A ...</k>
+         <functionsToCheck> (ListItem(functionStore(Label:K, A:K)) => .List) L:List </functionsToCheck>
         <currFunction> _ => Label </currFunction>
          <currentProgPoint> ProgCount:Int => 0 </currentProgPoint>
+        <instructionCounter> InstCount:Int => 1 </instructionCounter>
+        <tempLabelUses> TL:Set => .Set </tempLabelUses>
+        <tempExceptionUses> ETL:Set => .Set </tempExceptionUses>
+
+    rule
+        <k> functionDef(Attributes:Set,RetType:KResult, Label:SymbolicValueRef, Arguments:KResult, F:K)
+            => .K ...</k>
+        <functionsToCheck> Funs:List (.List => ListItem(functionStore(Label, setInitBlock(F) 
+                ~> checkSingleAssignment(F) ~> nextCheckPoint))) </functionsToCheck>
         <cbd> CM:Map => CM[aLoc(FunCount, pointerTypeValue(functionTypeValue(RetType,
                                  getArgTypes(Arguments)), defaultAddrSpace),heap) <- value(
                    functionTypeValue(RetType, getArgTypes(Arguments)), funptr(Label))] </cbd>
@@ -76,9 +89,6 @@ module LLVM-DECLARATIONS
         <currModule> ModName:SymbolicValueRef </currModule>
         <nextBase> FunCount:Int => FunCount +Int
                          sizeOfFunArg(Arguments) +Int numBytesFunHeader </nextBase>
-        <instructionCounter> InstCount:Int => 1 </instructionCounter>
-        <tempLabelUses> TL:Set => .Set </tempLabelUses>
-        <tempExceptionUses> ETL:Set => .Set </tempExceptionUses>
         (.Bag =>
             <function>...
                 <funModuleName> ModName </funModuleName>

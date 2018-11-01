@@ -234,7 +234,7 @@ module LLVM-NORMALIZING
                      V1:ValueRef (Pl:ParamList) Fat:FuncAttrs
                        Meta:InstructionMetadatas)
          => typeCheckCall(Name:SymbolicValueRef, K, Ca, Ty1,
-                    addNameToString(V1), getAllTypes(Pl), formTypeCheckList(Pl),
+                    addNameToString(V1), getAllTypes(Pl), addNameToString(formTypeCheckList(Pl)),
                     Pl, formSet(Ocv) formSet(Rat) formSet(Fat), Meta)
     rule typeCheckOp(Name:SymbolicValueRef, K:K,
                  invoke Opc:OptCallingConv Re:RetAttrs
@@ -242,7 +242,7 @@ module LLVM-NORMALIZING
                     to label La1:ValueRef unwind label La2:ValueRef 
                                   Meta:InstructionMetadatas)
          => typeCheckInvoke(Name:SymbolicValueRef, K, Ty,
-                    addNameToString(Va), getAllTypes(Pl), formTypeCheckList(Pl),
+                    addNameToString(Va), getAllTypes(Pl), addNameToString(formTypeCheckList(Pl)),
                     Pl, addNameToString(La1),  addNameToString(La2),
                        formSet(Opc) formSet(Re) formSet(Fu), Meta)
 
@@ -608,11 +608,11 @@ module LLVM-NORMALIZING
            => ListItem("error: getelementptr op must have at least one index.") </output>
 
     rule <k> typeCheckInGepList(Name:K,  gepTypeBag(T:KResult),
-                         valValue(Q:K), Es:ElemList, Vs:ElemList)
+                         Es:ElemList, Vs:ElemList)
            ~> K:K => .K </k>
          <output>... .List
              => ListItem("error: cannot calculate on the index type in the getelmentptr op.") </output>
-         requires notBool isAggregateType(T)
+         requires notBool isAggregateType(T) andBool lengthOfList(Es) >=Int 2
 
     rule <k> typeCheckInGepList(Name:K,  T:KResult,
            valValue(typeOperandGepVal(In:K, T':KResult, V:K)),
@@ -909,9 +909,9 @@ module LLVM-NORMALIZING
          requires notBool isPointerType(T')
 
     //deal with Select
-    rule <k> exprSelectType(TheCount:Int, X:K, valValue(typeOperandResult(T:K, V:K)),
+    rule <k> exprSelectType(TheCount:Int, X:K, (valValue(typeOperandResult(T:K, V:K)),
             valValue(typeOperandResult(T1:K, V1:K)),
-             valValue(typeOperandResult(T1:K, V2:K)), Meta:K) => .K </k>
+             valValue(typeOperandResult(T1:K, V2:K)),.ElemList), Meta:K) => .K ...</k>
         <tempBlockMap> Now:Map => Now (TheCount |->
               instNumInfo(TheCount, assign(X, instruction(select(
                    T,V, operand(T1,V1), operand(T1,V2))
@@ -1332,7 +1332,7 @@ module LLVM-NORMALIZING
                      pointerTypeValue(T:KResult, A:K), V2:K, Align:Int,
                      Mods:Set, Meta:InstructionMetadatas)
               => exprStoreType(TheCount, typeCheckArgList(Name, valValue(
-                    typeOperandResult(T, V1)), valValue(
+                    typeOperandResult(T, formalizeAllFloats(T, V1))), valValue(
            typeOperandResult(pointerTypeValue(T:KResult, A:K), V2)),.ElemList,.ElemList),
                    Align, Mods, insMetas(formElemList(Meta)))
                  ~> (assignUses(Name, TheCount, T, (val(V1),.ElemList))
@@ -1345,7 +1345,7 @@ module LLVM-NORMALIZING
                      pointerTypeValue(T:KResult, A:K), V2:K,
                           Align:Int, Mods:Set, Meta:InstructionMetadatas)
               => exprStoreType(TheCount, typeCheckArgList(Name, valValue(
-                    typeOperandResult(T, V1)), valValue(
+                    typeOperandResult(T, formalizeAllFloats(T, V1))), valValue(
            typeOperandResult(pointerTypeValue(T:KResult, A:K), V2)),.ElemList, .ElemList),
                    Align, Mods, insMetas(formElemList(Meta)))
                  ~> (assignUses(Name, TheCount, T, (val(V1),.ElemList))
@@ -1361,7 +1361,8 @@ module LLVM-NORMALIZING
                      pointerTypeValue(integerType(N:Int), A:K), V2:K,
                           Align:Int, Mods:Set, Meta:InstructionMetadatas)
               => exprStoreType(TheCount, typeCheckArgList(Name, valValue(
-                    typeOperandResult(integerType(N:Int), V1)), valValue(
+                    typeOperandResult(integerType(N:Int),
+                      formalizeAllFloats(integerType(N:Int), V1))), valValue(
            typeOperandResult(pointerTypeValue(integerType(N:Int), A:K), V2)),.ElemList, .ElemList),
                    Align, Mods, insMetas(formElemList(Meta)))
                  ~> (assignUses(Name, TheCount, integerType(N:Int), (val(V1),.ElemList))
@@ -2873,8 +2874,81 @@ module LLVM-NORMALIZING
           => flagStage(Op, applyInts(Op,
                                 T1, I1, I2, .Set, .ElemList))
 
+    rule constGepAST(F:K, T:KResult, valValue(
+             loc(B:Int, T':K, value(Left:Int, Right:Int),
+                   R:K, BL:K, Ran:K)),Vs:KResult)
+          => constGepNext(F, gepTypeBag(T), loc(B:Int, T':K, value(Left:Int, Right:Int),
+                   R:K, BL:K, Ran:K), Vs)
+
+    rule constGepNext(F:K, T:KResult, loc(B:Int, pointerTypeValue(T':K, Ad:Int),
+                      value(Left:Int, Right:Int), R:K, BL:K, Ran:K), .ElemList)
+                  => loc(B:Int, pointerTypeValue(T, Ad),
+                    value(Left:Int, Right:Int), R:K, BL:K, Ran:K)
+         requires F ==K inbounds andBool
+                  B +Int sizeof(T) <=Int Right andBool B >=Int Left
+    rule constGepNext(F:K, T:KResult, loc(B:Int, pointerTypeValue(T':K, Ad:Int),
+                      value(Left:Int, Right:Int), R:K, BL:K, Ran:K), .ElemList)
+                  => loc(B:Int, pointerTypeValue(T, Ad),
+                    value(Left:Int, Right:Int), R:K, BL:K, Ran:K)
+         requires F =/=K inbounds
+
+    rule <k> constGepNext(F:K, T:KResult, loc(B:Int, pointerTypeValue(T':K, Ad:Int),
+                     value(Left:Int, Right:Int), R:K, BL:K, Ran:K), .ElemList) ~> K:K
+                => .K </k>
+         <output>... (.List => ListItem("error: the gep constant expression is marked as inbounds but the pointer is pointing to the place out-of-bound.")) </output>
+         requires F ==K inbounds andBool
+                  (B +Int sizeof(T) >Int Right orBool B <Int Left)
+
+
+    rule <k> constGepNext(F:K, gepTypeBag(T:KResult), Loc:K, .ElemList) ~> K:K
+               => .K </k>
+         <output>... (.List => ListItem("error: no index for the gep const expression.")) </output>
+
+    rule <k> constGepNext(F:K, T:KResult, Loc:K, valValue(I:Int),Vs:ElemList) ~> K:K
+               => .K </k>
+         <output>... (.List
+             => ListItem("error: cannot do gep indexing for the type in the const expression.")) </output>
+         requires notBool isArrayType(T) andBool notBool isVectorType(T)
+                andBool notBool isStructType(T)
+
+    rule constGepNext(F:K, gepTypeBag(T:K),
+             loc(B:Int, T':K, LR:K, R:K, BL:K, Ran:K), valValue(I:Int),Vs:ElemList)
+          => constGepNext(F:K, T, loc(sizeof(T) *Int I +Int B:Int,
+                           T':K, LR:K, R:K, BL:K, Ran:K), Vs)
+    rule constGepNext(F:K, arrayTypeValue(T:KResult, N:Int),
+             loc(B:Int, T':K, LR:K, R:K, BL:K, Ran:K), valValue(I:Int),Vs:ElemList)
+          => constGepNext(F:K, T, loc(sizeof(T) *Int I +Int B:Int,
+                           T':K, LR:K, R:K, BL:K, Ran:K), Vs)
+    rule constGepNext(F:K, vectorTypeValue(T:KResult, N:Int),
+             loc(B:Int, T':K, LR:K, R:K, BL:K, Ran:K), valValue(I:Int),Vs:ElemList)
+          => constGepNext(F:K, T, loc(sizeof(T) *Int I +Int B:Int,
+                           T':K, LR:K, R:K, BL:K, Ran:K), Vs)
+    rule constGepNext(F:K, structTypeValue(Ts:KResult),
+             loc(B:Int, T':K, LR:K, R:K, BL:K, Ran:K), valValue(I:Int),Vs:ElemList)
+          => constGepNext(F:K, getGepTypeInStruct(Ts, I),
+                 loc(calGepInStruct(B, Ts, I), T':K, LR:K, R:K, BL:K, Ran:K), Vs)
+         requires calGepInStruct(B, Ts, I) =/=K badValue
+
+    rule <k> constGepNext(F:K, structTypeValue(Ts:KResult),
+             loc(B:Int, T':K, LR:K, R:K, BL:K, Ran:K), valValue(I:Int),Vs:ElemList) ~> K:K
+               => .K </k>
+         <output>... (.List => ListItem("error: invalid gep index for structure type.")) </output>
+         requires calGepInStruct(B, Ts, I) ==K badValue
+
+    rule constGepNext(F:K, packedStructTypeValue(Ts:KResult),
+             loc(B:Int, T':K, LR:K, R:K, BL:K, Ran:K), valValue(I:Int),Vs:ElemList)
+          => constGepNext(F:K, getGepTypeInStruct(Ts, I),
+                 loc(calGepInPackedStruct(B, Ts, I), T':K, LR:K, R:K, BL:K, Ran:K), Vs)
+         requires calGepInPackedStruct(B, Ts, I) =/=K badValue
+
+    rule <k> constGepNext(F:K, packedStructTypeValue(Ts:KResult),
+             loc(B:Int, T':K, LR:K, R:K, BL:K, Ran:K), valValue(I:Int),Vs:ElemList) ~> K:K
+               => .K </k>
+         <output>... (.List => ListItem("error: invalid gep index for structure type.")) </output>
+         requires calGepInPackedStruct(B, Ts, I) ==K badValue
+
     rule <k> typeCheckConstExpr(T:K, name(localVar, X:K)) ~> K:K => .K </k>
-         <output>... .List => ListItem("error: invalid use of function-local name.") </output>
+         <output>... (.List => ListItem("error: invalid use of function-local name.")) </output>
 
     rule <k> typeCheckConstExpr(T:K, name(globalVar, X:K)) => typeOperandResult(T, Loc)  ...</k>
          <globalTypes>... name(globalVar, X:K) |->
@@ -2923,15 +2997,41 @@ module LLVM-NORMALIZING
                  typeCheckConstExprs(vectorTypeValue(integerType(N:Int), I:Int),
                (val(typeOperand(T1,V1)),val(typeOperand(T2,V2)),.ElemList),.ElemList))
 
+    rule typeCheckConstExpr(T:KResult,
+              constGepAST(Op:K, T':K, Vs:ElemList))
+          => constGepType(T, Op, typeCheckExprs(Vs, .ElemList))
+    rule constGepType(T:KResult, F:K,
+                (valValue(typeOperandResult(
+                      pointerTypeValue(T':KResult, Ad:Int), V:K)), Vs:KResult))
+           => constGepTypeNext(T, constGepAST(F, T',
+                   formOperandList(valValue(typeOperandResult(
+                      pointerTypeValue(T':KResult, Ad:Int), V:K)), Vs:KResult)))
+    rule constGepTypeNext(T:KResult, loc(B:Int, T, LR:K, R:K, BL:K, Ran:K))
+           => typeOperandResult(T, loc(B:Int, T, LR:K, R:K, BL:K, Ran:K))
+  
+    rule <k> constGepTypeNext(T:KResult, loc(B:Int, T':KResult, LR:K, R:K, BL:K, Ran:K)) ~> K:K
+           => .K </k>
+         <output>... .List
+            => ListItem("error: gep constant expression type mismatch.") </output>
+         requires T =/=K T'
+
     rule constIntBinType(T:KResult, Op:BinaryIntOps,
                   valValue(typeOperandResult(T:KResult, V1:KResult)),
                     valValue(typeOperandResult(T:KResult, V2:KResult)),.ElemList)
              => constExprType(T, constBinAST(Op, T, V1, T, V2))
 
-    rule constIntBinType(T:KResult, Op:BinaryIntOps,
+    rule constIntBinType(T:KResult, Op:LogicalOps,
                   valValue(typeOperandResult(T:KResult, V1:KResult)),
                     valValue(typeOperandResult(T:KResult, V2:KResult)),.ElemList)
              => constExprType(T, constLogicAST(Op, T, V1, T, V2))
+
+    rule <k> constIntBinType(T:KResult, Op:LogicalOps,
+                  valValue(typeOperandResult(T1:KResult, V1:KResult)),
+                    valValue(typeOperandResult(T2:KResult, V2:KResult)),.ElemList) ~> K
+              => .K </k>
+         <output>... .List
+            => ListItem("error: type check wrong in constant arith ops.") </output>
+         requires T =/=K T1 orBool T =/=K T2
 
     rule constExprType(T:KResult, V:KResult) => typeOperandResult(T, V)
 
@@ -3178,7 +3278,8 @@ module LLVM-NORMALIZING
          <output>... .List => ListItem("error: invalid array number for instruction") </output>
          requires I <Int 0
 
-    rule typeCheckArrayExpr(T:KResult, I:Int, undef) => typeOperandResult(T, undef)
+    rule typeCheckArrayExpr(T:KResult, I:Int, undef)
+                               => typeOperandResult(T, undef)
     rule typeCheckArrayExpr(T:KResult, I:Int, zeroinitializer)
                     => typeOperandResult(T, putZeroInitializer(T))
     rule <k> typeCheckArrayExpr(T:KResult, I:Int, X:SymbolicValueRef)
@@ -3198,11 +3299,22 @@ module LLVM-NORMALIZING
          => typeCheckArrayExpr(arrayTypeValue(T:KResult, I:Int), N:Int,
                  skipValue, .K, R:ElemList, .ElemList)
 
+    rule typeCheckArrayExpr(arrayTypeValue(T:KResult, I:Int), N:Int,
+                 arrayValue(R:ElemList))
+         => typeCheckArrayExpr(arrayTypeValue(T:KResult, I:Int), N:Int,
+                 skipValue, .K, R:ElemList, .ElemList)
+
     rule typeCheckArrayExpr(T:K, 0, skipValue, .K, .ElemList, Es:ElemList)
            => typeOperandResult(T, array(Es))
     rule typeCheckArrayExpr(T:K, N:Int, skipValue, .K,
                 (val(operand(T':K, V:K)),Vs:ElemList), Es:ElemList)
            => typeCheckArrayExpr(T, N -Int 1, T', V, Vs, Es)
+         requires N >Int 0
+
+    rule typeCheckArrayExpr(arrayTypeValue(T:KResult, I:Int), N:Int, skipValue, .K,
+                (valValue(V:K),Vs:ElemList), Es:ElemList)
+           => typeCheckArrayExpr(arrayTypeValue(T:KResult, I:Int),
+                        N -Int 1, T, V, Vs, Es)
          requires N >Int 0
 
     rule typeCheckArrayExpr(arrayTypeValue(T:KResult, I:Int),
@@ -3427,6 +3539,12 @@ module LLVM-NORMALIZING
                addElemToEnd(valValue(typeOperandResult(T:KResult, V:K)), Es))
 
     //type check general expression
+    rule typeCheckExprs(.ElemList, Es:ElemList) => Es
+    rule typeCheckExprs((val(operand(T:K, V:K)), E1:ElemList), Es:ElemList)
+                 => typeCheckExpr(T,V) ~> typeCheckExprs(E1, Es)
+    rule typeOperandResult(T:KResult, V:K) ~> typeCheckExprs(Es:ElemList, E2:ElemList)
+          => typeCheckExprs(Es, addElemToEnd(valValue(typeOperandResult(T, V)), E2))
+
     rule typeCheckExpr(pointerTypeValue(T:KResult, Ad:KResult), V:K)
           => preTypeCheckPointerExpr(pointerTypeValue(T:KResult, Ad:KResult), V:K)
     rule typeCheckExpr(vectorTypeValue(T:KResult, I:Int), V:K)

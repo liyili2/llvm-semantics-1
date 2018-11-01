@@ -31,6 +31,7 @@ module LLVM-CONFIGURATION
             <tempResumes> .List </tempResumes>
             <tempBlockAddrChecks> .Set </tempBlockAddrChecks>
             <tempBlockMap> .Map </tempBlockMap> //set for store inst map for a block
+            <functionsToCheck> .List </functionsToCheck>
             <mutexes>
               <mutexCount> 0 </mutexCount>
               <avaMutex> .Set </avaMutex> //all alive mutexes
@@ -47,7 +48,7 @@ module LLVM-CONFIGURATION
                                              //a thread only talks to one chanel
                 //<buffer> .List </buffer> //thread execution buffer, items will be moved to exBuffer
                 <k color="LightGreen"> initialMemChannels(maxMemChannel) ~> 
-                               ($PGM:Module ~> (initGlobals ~> callMain)) </k>
+                               ($PGM:Module ~> callMain) </k>
                 //main cell containing program code
                 <tomasulo>
                     <toExecute> .K </toExecute>

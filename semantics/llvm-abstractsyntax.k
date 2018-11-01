@@ -172,6 +172,9 @@ module LLVM-ABSTRACTSYNTAX
     //parse concrete var to AST var
     syntax KItem ::= addNameToString(K) [function]
 
+    rule addNameToString(val(typeOperand(T:K, V:K)),Es:ElemList)
+                => val(typeOperand(T, addNameToString(V))), addNameToString(Es)
+    rule addNameToString(.ElemList) => .ElemList
     rule addNameToString(Var:LocalName) => name(localVar, substrString(#tokenToString(Var),1
                           ,lengthString(#tokenToString(Var))))
     rule addNameToString(Var:GlobalName) => name(globalVar, substrString(#tokenToString(Var),1
@@ -736,6 +739,7 @@ module LLVM-ABSTRACTSYNTAX
     syntax KResult ::= dynNoResult(K)
     syntax KItem ::= waitForBranch(K)
     //syntax KItem ::= exprType(K) [strict]
+    syntax KItem ::= constGepType(K, K, ElemList) [strict(3)]//supposed-t, op, type, args
     syntax KItem ::= constIntBinType(K, K, ElemList)   [strict(3)]//type, op, args
     syntax KItem ::= exprGepArgType(K, K) [strict(2)] //inrange, arg-type
     syntax KItem ::= exprSelectType(Int, K, ElemList, K) [strict(3)]
@@ -798,6 +802,7 @@ module LLVM-ABSTRACTSYNTAX
       //chunckrange, size, align, addspace, range, races, completes
     //instructions
     syntax KItem ::= "guessExternal"
+    syntax KItem ::= postPreStaticStore(Set, K, K, K, K, Int, Int) [strict(4)]
     syntax KItem ::= preStaticStore(K, K, K, K, Int) [strict(2)]
     syntax KItem ::= staticStore(K, K, K, K, Int) [strict(2)]
                         // Type, Value, deType, Destination, aligns
@@ -896,9 +901,11 @@ module LLVM-ABSTRACTSYNTAX
     syntax KItem ::= select(K, K, K, K) [strict] //ty, condition, true val, false val
     syntax KItem ::= tailCall(K, K)
     rule tailCall(K:K, E:K) => call(K,E) [structural] //first assume that call and tailcall are the same.    
+    syntax KResult ::= callResultMark(K) //used to see if a result is from a call
 
     //constructors for switching context
     syntax KItem ::= contextSwitch(K, K)
+    syntax KItem ::= contextBackSwitch(Bag, Bag, Bag)
     syntax KItem ::= switchBack(K)
     syntax KItem ::= frame(K, Bag, Bag, Bag)
     syntax KItem ::= bind(ElemList, ElemList)
@@ -952,6 +959,8 @@ module LLVM-ABSTRACTSYNTAX
     syntax KItem ::= setInEdgesForNode(K)
     syntax KItem ::= setInEdgesForNode(K, K, Set)
     syntax KItem ::= setInitBlock(K)
+    syntax KItem ::= "nextCheckPoint"
+    syntax KItem ::= functionStore(K, K)
     syntax KItem ::= startInitBlock(K)
     syntax KItem ::= calDefUse(K, Set, Set)
                    //new blocks, visited blocks
@@ -1086,6 +1095,10 @@ module LLVM-ABSTRACTSYNTAX
                    | constInElemAST(K, K, K, K, K, K) [strict]
                              //type, val, type, val, type, val
 
+    syntax KItem ::= constGepNext(K,K,K,ElemList)
+                  //inbounds, type, pointer, index
+                   | constGepTypeNext(K, K) [strict(2)] //type, result
+
     //type check functions
     syntax KItem ::= typeCheckOp(K, K, K) //block name, var name, op
                    | typeCheckVaArg(K, K, K, K, K, InstructionMetadatas) [strict(3,5)]
@@ -1119,7 +1132,8 @@ module LLVM-ABSTRACTSYNTAX
                    | typeCheckPointerExpr(K, K)
                    | typeCheckConstExpr(K, K)   [strict(1)]//type var
                    | typeMatch(K, K)            [strict] //type, type
-                   | typeCheckExpr(K, K)//t, v
+                   | typeCheckExpr(K, K)        [strict(1)]//t, v
+                   | typeCheckExprs(ElemList, ElemList)//(t, v) list
                    | preTypeCheckFloatExpr(K, K)//type, var
                    | typeCheckFloatExpr(K, K) //type, var
                    | preTypeCheckIntExpr(K, K)//type, var

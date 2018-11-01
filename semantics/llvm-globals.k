@@ -92,21 +92,40 @@ module LLVM-GLOBALS
          <globalRegisters> GM => GM[X <- Loc] </globalRegisters>
          requires isExternal(L)
 
+    //after checking for unnamed global
+    rule <k> postPreStaticStore(L:Set, Ty:KResult, X:SymbolicValueRef,
+                      Loc:Loc, Init:K, Ad:Int, Al:Int)
+               => preStaticStore(Ty, typeCheckExpr(Ty, Init),
+                       pointerTypeValue(Ty, Ad), Loc, Al) ...</k>
+         <globalRegisters> GM => GM[X <- Loc] </globalRegisters>
+         requires notBool isExternal(L)
+
+    rule <k> postPreStaticStore(L:Set, Ty:KResult, X:SymbolicValueRef,
+                      Loc:Loc, Init:K, Ad:Int, Al:Int)
+               => staticStore(Ty, guessExternal,
+                             pointerTypeValue(Ty, Ad), Loc, Al) ...</k>
+         <globalRegisters> GM => GM[X <- Loc] </globalRegisters>
+         requires isExternal(L)
+
     //if unname not exist similar content item
     rule postInitAux(Mods:Set, .List, Ty:KResult, X:K, Init:KResult, Ad:Int, Al:Int)
-           => preInit(Mods, Ty, X, alloca(Ty, sizeof(Ty), Ad, Al, true), Init, Ad, Al)
+           => postPreStaticStore(Mods, Ty, X,
+                      alloca(Ty, sizeof(Ty), Ad, Al, true), Init, Ad, Al)
          requires isThreadLocal(Mods) andBool constant in Mods
 
     rule postInitAux(Mods:Set, .List,Ty:KResult, X:K, Init:KResult, Ad:Int, Al:Int)
-           => preInit(Mods, Ty, X, alloca(Ty, sizeof(Ty), Ad, Al, false), Init, Ad, Al)
+           => postPreStaticStore(Mods, Ty, X,
+                      alloca(Ty, sizeof(Ty), Ad, Al, false), Init, Ad, Al)
          requires isThreadLocal(Mods) andBool notBool constant in Mods
 
     rule postInitAux(Mods:Set, .List,Ty:KResult, X:K, Init:KResult, Ad:Int, Al:Int)
-           => preInit(Mods, Ty, X, globalAlloca(Ty, sizeof(Ty), Ad, Al, true), Init, Ad, Al)
+           => postPreStaticStore(Mods, Ty, X,
+                          globalAlloca(Ty, sizeof(Ty), Ad, Al, true), Init, Ad, Al)
          requires notBool isThreadLocal(Mods) andBool constant in Mods
 
     rule postInitAux(Mods:Set, .List,Ty:KResult, X:K, Init:KResult, Ad:Int, Al:Int)
-           => preInit(Mods, Ty, X, globalAlloca(Ty, sizeof(Ty), Ad, Al, false), Init, Ad, Al)
+           => postPreStaticStore(Mods, Ty, X,
+                         globalAlloca(Ty, sizeof(Ty), Ad, Al, false), Init, Ad, Al)
          requires notBool isThreadLocal(Mods) andBool notBool constant in Mods
 
     rule postInitAux(Mods:Set, ListItem(aLoc(Ba:Int,

@@ -1335,6 +1335,8 @@ module LLVM-MEMORY
     rule <k> staticStore(Type:KResult, V:KResult, T2:K,
                    loc(Base:Int, pointerTypeValue(Type, Ad:Int),
                value(Left:Int, Right:Int), stack, none, InR:K), RA:Int) => .K ...</k>
+        <cbd> M:Map => M[aLoc(Base, pointerTypeValue(Type, Ad:Int), stack)
+                        <- value(Type, V)] </cbd>
         <instructionCounter> Static:Int => Static +Int 1 </instructionCounter>
         <stackOpList> L:List (.List => genWriteBytes(TID, staticBlockNum, Static, 
                     stack, Type, splitBytes(V, Type), storeOperand(TID, Type, V),
@@ -1351,6 +1353,8 @@ module LLVM-MEMORY
     rule <k> staticStore(Type:KResult, V:KResult, T2:K,
                    loc(Base:Int, pointerTypeValue(Type, Ad:Int),
               value(Left:Int, Right:Int), heap, none, InR:K), RA:Int) => .K ...</k>
+        <cbd> M:Map => M[aLoc(Base, pointerTypeValue(Type, Ad:Int), heap)
+                        <- value(Type, V)] </cbd>
         <instructionCounter> Static:Int => Static +Int 1 </instructionCounter>
          <memChannelId> Chan:Int </memChannelId>
         <channelId> Chan </channelId>
@@ -2580,7 +2584,6 @@ module LLVM-MEMORY
              <byteMap>... Base +Int Other |-> V:K ...</byteMap> </memory>
          requires matchAddrSpace(Base, 1, Ad, .K, Obj)
             andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
-          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2601,7 +2604,6 @@ module LLVM-MEMORY
          requires notBool matchAddrSpace(Base, 1, Ad, .K, Obj)
             andBool notBool isOverlap(Base, 1, .K, getRace(Base, 1, .K, Obj))
             andBool isInMemRange(MOL, Base, 1)
-          [transition]
 
     //when the bytes are not one
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -2627,6 +2629,7 @@ module LLVM-MEMORY
                  andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
+          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List), Unf:K, Fl:K)))
@@ -2651,6 +2654,7 @@ module LLVM-MEMORY
                  andBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
+          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2674,6 +2678,7 @@ module LLVM-MEMORY
                  andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
+          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2697,6 +2702,7 @@ module LLVM-MEMORY
                  andBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool notBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool Size =/=Int 1
+          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2715,6 +2721,7 @@ module LLVM-MEMORY
                  andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 <Int Size
                  andBool Size =/=Int 1
                  andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2738,6 +2745,7 @@ module LLVM-MEMORY
                  andBool Size =/=Int 1
                  andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
                  andBool isInMemRange(MOL, Base, Size)
+          [transition]
 
     //when finishing reading all bytes
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
@@ -2758,6 +2766,7 @@ module LLVM-MEMORY
                  andBool getComplete(Base, Size, .K, Obj)[memId(Tid, Bn, In)] +Int 1 >=Int Size
                  andBool Size =/=Int 1
                  andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+          [transition]
 
     rule <readBack> readMap(RM:Map (varInstance(Bn, In)
                  |-> readBackHold(X:K, loadHold(T':K, LL:List),Unf:K, Fl:K)))
@@ -2781,6 +2790,7 @@ module LLVM-MEMORY
                  andBool Size =/=Int 1
                  andBool notBool isOverlap(Base, Size, .K, getRace(Base, Size, .K, Obj))
                  andBool memId(Tid, Bn, In) in keys(getComplete(Base, Size, .K, Obj))
+          [transition]
 
     //atomic write in stack
     rule <stackOpList> (ListItem(singleMem(Tid:Int, Bn:Int, In:Int,stack,
@@ -4212,7 +4222,8 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
         ...</k>
 
     rule
-        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.va_end")), (valValue(V1:KResult))))
+        <k> call(_, calleeValue(funptr(name(globalVar, "llvm.va_end")),
+                    (valValue(V1:KResult), .ElemList)))
             => vaClose(V1)
         ...</k>
 
@@ -4223,9 +4234,17 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
             ListItem("abort function happens, this is core dumped.")
          </output>
 
-    rule <k> call(_, calleeValue(funptr(name(globalVar, "exit")), valValue(V:KResult)))
-            => .K ...</k>
-        (.Bag => <result><returnValue> V </returnValue></result>)
+    rule <k> (call(_, calleeValue(funptr(name(globalVar, "exit")),
+                          (valValue(typedArg(_:Set, T:K, V:K)), .ElemList)))
+                 ~> K:K)
+               => clearLocalMemory(.K, Locals)
+            ~> contextBackSwitch(C, D, S)
+            ~> (initializer(T, V)
+            ~> clearVoid) </k>
+        <toCommit> memList(.K, .Set, .List, .List, .List, .List) </toCommit>
+        <stackOpList> .List </stackOpList>
+        <callStack> (L:List ListItem(frame(Tail:K, C:Bag, D:Bag, S:Bag))) => .List </callStack>
+        <control> <localMemory> Locals:Set </localMemory> C':Bag </control>
 
     rule call(_, calleeValue(funptr(name(globalVar, "malloc")),
                  (valValue(V1:KResult), .ElemList)))

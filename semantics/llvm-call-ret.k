@@ -327,7 +327,7 @@ module LLVM-CALL-RET
                        M[varInstance(BN, X) <- V], M', Rev)) </toCommit>
          <specTree> Rev:Map => updateVarInSpecTree(Rev, Cur, .K, .K,
                          M[varInstance(BN, X) <- V], M', Rev) </specTree>
-         requires BN >Int Cur
+         requires BN >Int Cur andBool notBool isCallReturn(V)
          [transition]
 
     rule <k> runDynInst(dynResult(X:SymbolicValueRef, V:KResult)) => .K ...</k>
@@ -343,12 +343,25 @@ module LLVM-CALL-RET
                         CML ML, M, M'[X <- V], Rev)) </toCommit>
          <specTree> Rev:Map => updateVarInSpecTree(Rev, Cur, .K, .K,
                          M, M'[X <- V], Rev) </specTree>
-         requires BN <=Int Cur
+         requires BN <=Int Cur andBool notBool isCallReturn(V)
          [transition]
 
     rule <k> runDynInst(dynNoResult(V:KResult)) => .K ...</k>
          <cpu> dynInstHold(BN:Int, IN:Int, T:K) => .K </cpu>
+         requires notBool isCallReturn(V)
         [transition]
+
+    rule <k> runDynInst(dynNoResult(callResultMark(V:K)))
+               => runDynInst(dynNoResult(V)) ...</k>
+         <cpu> dynInstHold(BN:Int, IN:Int, T:K) </cpu>
+         <specTree>... BN |-> (A:K => releaseCallFence(A, IN)) ...</specTree>
+         [transition]
+
+    rule <k> runDynInst(dynResult(X:SymbolicValueRef, callResultMark(V:K)))
+               => runDynInst(dynResult(X:SymbolicValueRef, V:K)) ...</k>
+         <cpu> dynInstHold(BN:Int, IN:Int, T:K) </cpu>
+         <specTree>... BN |-> (A:K => releaseCallFence(A, IN)) ...</specTree>
+         [transition]
 
     rule
         <k> contextSwitch(FunName, Tail) => .K ...</k>
@@ -430,15 +443,20 @@ module LLVM-CALL-RET
     rule
         <k> ret(T:KResult, V:KResult) ~> _
             => clearLocalMemory(.K, Locals)
+            ~> contextBackSwitch(C, D, S)
             ~> (initializer(T, V)
             ~> (clearVoid
             ~> Tail))
         </k>
+        <toCommit> memList(.K, .Set, .List, .List, .List, .List) </toCommit>
+        <stackOpList> .List </stackOpList>
         <callStack> ListItem(frame(Tail:K, C:Bag, D:Bag, S:Bag)) => .List ...</callStack>
-        <control> <localMemory> Locals:Set </localMemory> _ => C </control>
-        <stack> _:Bag => S </stack>
-        <tomasulo> <toCommit> memList(.K, .Set, .List, .List, .List, .List) </toCommit>
-                    TB:Bag => D </tomasulo>
+        <control> <localMemory> Locals:Set </localMemory> C':Bag </control>
+
+    rule <k> contextBackSwitch(C:Bag, D:Bag, S:Bag) => .K ...</k>
+        <control> C':Bag => C </control>
+        <stack> (<stackList> .List </stackList> S':Bag) => S </stack>
+        <tomasulo> TB:Bag => D </tomasulo>
 
     rule clearLocalMemory(.K, .Set) => .K
     rule clearLocalMemory(.K, SetItem(A:K) S:Set) => clearLocalMemory(A, S)
@@ -452,8 +470,8 @@ module LLVM-CALL-RET
         <stackList> SL:List => removeLocalStack(Base, SL) </stackList>
         <stackInfo> SI:List => removeStackObject(SI, Base) </stackInfo>
 
-    rule initializer(void, V:K) ~> clearVoid => undef
-    rule initializer(T:K, V:KResult) ~> clearVoid => V
+    rule initializer(void, V:K) ~> clearVoid => callResultMark(undef)
+    rule initializer(T:K, V:KResult) ~> clearVoid => callResultMark(V)
          when T =/=K void
 
     rule initializer(void, V:K) ~> clearResume => resumeVal(undef)

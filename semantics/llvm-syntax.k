@@ -1045,7 +1045,7 @@ module LLVM-SYNTAX
 
     //define parameter lists. It is a syntactic convince to define it like this.
     syntax ParamFactor ::= Type ParamAttrs ValueRef [klabel('paramFactor)]
-    syntax ParamList ::= List{ParamFactor,","}
+    syntax ParamList ::= List{ParamFactor,","}  [klabel('paramListCon)]
 
     /*@
       Define phi lists for the use of blocks in a phi function.

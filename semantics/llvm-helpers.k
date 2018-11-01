@@ -3799,7 +3799,8 @@ module LLVM-HELPERS
     rule formArgList(.ElemList, Ps:ParamList) => .ElemList
     rule formArgList(valValue(typeOperandResult(T:KResult, E:K)), Es:ElemList,
                        Ty:Type Pa:ParamAttrs Va:ValueRef, Pl:ParamList)
-                          => val(arg(formSet(Pa), T, Va)),formArgList(Es, Pl)
+                          => val(arg(formSet(Pa), T,
+                               formalizeAllFloats(T, E))),formArgList(Es, Pl)
 
     syntax ElemList ::= toArgList(ElemList)   [function]
     rule toArgList(.ElemList) => .ElemList
@@ -5842,7 +5843,7 @@ module LLVM-HELPERS
     rule removeLocalStack(Base:Int, ListItem(value(Base,
                End:Int)) L:List) => L
     rule removeLocalStack(Base:Int, ListItem(value(Base':Int,
-               End:Int)) L:List) => ListItem(value(Base,
+               End:Int)) L:List) => ListItem(value(Base',
                End:Int)) removeLocalStack(Base, L)
          requires Base =/=K Base'
 
@@ -6561,6 +6562,10 @@ module LLVM-HELPERS
     rule formalizeFloat(T:K, V:HexConstant) => binToFloat(T, hexToBin(T, V))
     rule formalizeFloat(T:K, zeroinitializer) => posZero
          requires isFloatType(T)
+    rule formalizeFloat(integerType(N:Int), zeroinitializer)
+            => putZeroInitializer(integerType(N:Int))
+    rule formalizeFloat(integerType(N:Int), I:Int)
+            => normalizingInt(integerType(N:Int), I)
     rule formalizeFloat(T:K, V:K) => V [owise]
 
     syntax KItem ::= formalizeFloats(K, K) [function]
@@ -6705,6 +6710,22 @@ module LLVM-HELPERS
     syntax Bool ::= isResumeVal(K) [function]
     rule isResumeVal(resumeVal(_:K)) => true
     rule isResumeVal(_:K) => false [owise]
+
+    syntax Bool ::= isCallReturn(K) [function]
+    rule isCallReturn(callResultMark(_:K)) => true
+    rule isCallReturn(_:K) => false [owise]
+
+    //a function to mark call fence with true so that later mem op can proceed.
+    syntax KItem ::= releaseCallFence(K, Int) [function]
+    syntax List ::= releaseCallFenceInList(List, Int) [function]
+    rule releaseCallFence(runBlock(A:Int, B:K, C:K, D:List, E:Set, F:Set), I:Int)
+            => runBlock(A, B, C, releaseCallFenceInList(D,I), E, F)
+    rule releaseCallFenceInList(.List, A:Int) => .List
+    rule releaseCallFenceInList(ListItem(memProto(A:Int, B:K, C:Map, D:Bool)) L:List, I:Int)
+            => ListItem(memProto(A, B, C, D)) releaseCallFenceInList(L, I)
+         requires A =/=K I
+    rule releaseCallFenceInList(ListItem(memProto(I:Int, B:K, C:Map, D:Bool)) L:List, I:Int)
+            => ListItem(memProto(I, B, C, true)) L
 
     syntax KItem ::= checkLandingpadAux(K, K, K, Map)  [function]
     rule checkLandingpadAux(I:K, .K,  .K, .Map) => checkLandingpad

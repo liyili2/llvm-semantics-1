@@ -73,7 +73,15 @@ module LLVM-START-AND-STOP
 
     rule [terminate-exit]:
         <T>...
-            <k> I:KResult => call(void, callee(name(globalVar, "exit"), arguments(val(I)))) </k>
+            <k> I:KResult => .K </k>
         ...</T>
+        (.Bag => <result><returnValue> I </returnValue></result>)
+        requires notBool isCallReturn(I)
+
+    rule [terminate-exit1]:
+        <T>...
+            <k> callResultMark(I:KResult) => .K </k>
+        ...</T>
+        (.Bag => <result><returnValue> I </returnValue></result>)
 
 endmodule
