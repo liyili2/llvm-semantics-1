@@ -1,6 +1,9 @@
 //
+requires "llvm-syntax.k"
+requires "llvm-abstractsyntax.k"
 
 module LLVM-STANDARD-LIBRARY-SYNTAX
+    imports LLVM-ABSTRACTSYNTAX
 
     syntax KItem ::= memcpy(K, K, K)
     syntax KItem ::= memmove(K, K, K)
@@ -9,6 +12,11 @@ module LLVM-STANDARD-LIBRARY-SYNTAX
     syntax KItem ::= lifetimeStart(K, K)
     syntax KItem ::= lifetimeEnd(K, K)
     syntax KItem ::= libcStartMainZero(K, K, K, K, K, K)
+
+    //syntax for printf
+    syntax KItem ::= printFun(K, ElemList) //loc, indicators.
+    syntax KItem ::= printFunAux(K, K, ElemList) [strict(2)] //size, array, indicator
+    syntax KItem ::= printFunNext(K, ElemList) [strict(2)] //size, array, indicator
 
     syntax KItem ::= vaStart(K)
     syntax KItem ::= vaCopy(K, K)

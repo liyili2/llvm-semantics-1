@@ -2874,6 +2874,7 @@ module LLVM-NORMALIZING
           => flagStage(Op, applyInts(Op,
                                 T1, I1, I2, .Set, .ElemList))
 
+    //apply gep constant and get values
     rule constGepAST(F:K, T:KResult, valValue(
              loc(B:Int, T':K, value(Left:Int, Right:Int),
                    R:K, BL:K, Ran:K)),Vs:KResult)
@@ -2973,6 +2974,38 @@ module LLVM-NORMALIZING
           => typeCheckVectorArg(
                     vectorTypeValue(T:K, I:Int), I, vector(Es:ElemList))
 
+    //type check casting op const
+    rule typeCheckConstExpr(T:KResult, constCastAST(Op:K, T1:K, V:K, T2:K))
+            => constCastTypeNext(Op, T, T2, typeCheckExpr(T1, V))
+    rule <k> constCastTypeNext(Op:K, T:KResult, T':KResult, V:K) ~> K:K => .K </k>
+         <output>... .List
+            => ListItem("error: const expression types mismatch in the const cast op.") </output>
+         requires T =/=K T'
+
+    rule constCastTypeNext(inttoptr, T1:K,
+                      T1:K, typeOperandResult(integerType(N:Int), V:K))
+          => constCastNext(T1, theIntToPtr(integerType(N:Int), V, T1))
+         requires isPointerType(T1)
+    rule constCastTypeNext(ptrtoint, integerType(N:Int),
+                      integerType(N:Int), typeOperandResult(T1:KResult, V:K))
+          => constCastNext(integerType(N:Int), thePtrToInt(T1, V, integerType(N:Int)))
+         requires isPointerType(T1)
+
+    rule constCastTypeNext(bitcast, T1, T1:KResult, typeOperandResult(T2:KResult, V:K))
+          => constCastNext(T2, theBitCast(T2, V, T1))
+        requires isValidBitCastType(T1) andBool isValidBitCastType(T2)
+                 andBool sizeofInBits(T1) =/=K sizeofInBits(T2)
+    rule constCastTypeNext(bitcast, pointerTypeValue(T1:KResult, Ad:Int),
+                 pointerTypeValue(T1:KResult, Ad:Int),
+             typeOperandResult(pointerTypeValue(T2:KResult, Ad:Int), V:K))
+          => constCastNext(T2, theBitCast(pointerTypeValue(T2:KResult, Ad:Int),
+                     V, pointerTypeValue(T1:KResult, Ad:Int)))
+        requires notBool hasInValidMMXType(T1)
+                   andBool notBool hasInValidMMXType(T2)
+
+    rule constCastNext(T:KResult, V:KResult) => typeOperandResult(T, V)
+
+    //type check binary type const
     rule typeCheckConstExpr(integerType(N:Int), constBinAST(Op:BinaryIntOps,
                                 T1:K, V1:K, T2:K, V2:K))
           => constIntBinType(integerType(N:Int), Op, 
@@ -3487,6 +3520,9 @@ module LLVM-NORMALIZING
                      => typeOperandResult(T, putZeroInitializer(T))
     rule typeCheckFloatExpr(T:FPType, float(A:Int, B:Int, L:List))
                    => typeOperandResult(T, float(A:Int, B:Int, L:List))
+    rule typeCheckFloatExpr(T:FPType, floatLoc(I:Int,T':K, R:K, Ran:K, Bl:K))
+               => typeOperandResult(T,
+                                floatLoc(I:Int,T':K, R:K, Ran:K, Bl:K))
     rule typeCheckFloatExpr(T:FPType, nan) => typeOperandResult(T, nan)
     rule typeCheckFloatExpr(T:FPType, posZero) => typeOperandResult(T, posZero)
     rule typeCheckFloatExpr(T:FPType, negZero) => typeOperandResult(T, negZero)
@@ -3620,8 +3656,11 @@ module LLVM-NORMALIZING
     rule typeCheckIntExpr(T:KResult, undef) => typeOperandResult(T, undef)
     rule typeCheckIntExpr(T:KResult, zeroinitializer)
               => typeOperandResult(T, 0)
+    rule typeCheckIntExpr(integerType(N:Int), intLoc(I:Int,T:K, R:K, Ran:K, Bl:K))
+               => typeOperandResult(integerType(N:Int),
+                                intLoc(normalizingInt(integerType(N:Int), I),T:K, R:K, Ran:K, Bl:K))
     rule typeCheckIntExpr(integerType(N:Int), I:Int)
-               => typeOperandResult(integerType(N:Int), I)
+               => typeOperandResult(integerType(N:Int), normalizingInt(integerType(N:Int), I))
     rule typeCheckIntExpr(integerType(1), B:Bool)
                => typeOperandResult(integerType(1), boolToInt(B))
 

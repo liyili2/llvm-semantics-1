@@ -33,10 +33,11 @@ module LLVM-DECLARATIONS
             => MetaVars
             ~> (Typedefs
             ~> (GlobalVars
+            ~> (dealWithUnnamed
             ~> (Aliases
             ~> (Functions
             ~> (initGlobals
-            ~> nextCheckPoint)))))
+            ~> nextCheckPoint))))))
         ...</k>
         <currModule> _ => Label </currModule>
         <modules>...

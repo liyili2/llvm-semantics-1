@@ -4227,6 +4227,12 @@ module LLVM-STANDARD-LIBRARY-PREPROCESS
             => vaClose(V1)
         ...</k>
 
+    rule <k> call(_, calleeValue(funptr(name(globalVar, "printf")),
+                    (valValue(V1:KResult), Es:ElemList)))
+            => printFun(V1, Es)
+        ...</k>
+
+
     rule <threads> <thread>...
             <k> call(_, calleeValue(funptr(name(globalVar, "abort")), .ElemList))
               ~> K:K </k> ...</thread> TD:Bag => .Bag </threads>
@@ -4271,6 +4277,56 @@ module LLVM-STANDARD-LIBRARY
     imports LLVM-CONFIGURATION
     imports LLVM-STANDARD-LIBRARY-SYNTAX
     imports LLVM-SYSCALLS-SYNTAX
+
+    //a process to deal with printf function. first need to find the range of the loc
+    rule <k> printFun(typedArg(L:Set, T:K, loc(Base:Int, pointerTypeValue(integerType(8), Ad:Int),
+                     value(Left:Int, Right:Int), Ran:K, Bl:K, InR:K)), Es:ElemList)
+             => printFunAux(arrayTypeValue(
+                            integerType(8), findSizeObject(Base, .K, S)),
+                      staticLoad(arrayTypeValue(
+                            integerType(8), findSizeObject(Base, .K, S)),
+                   loc(Base:Int, pointerTypeValue(arrayTypeValue(
+                            integerType(8), findSizeObject(Base, .K, S)), Ad:Int),
+                     value(Left:Int, Right:Int), Ran:K, Bl, InR:K), monotonic), Es) ...</k>
+         <channelId> Chan </channelId>
+         <memChannelId> Chan:K </memChannelId>
+         <objects> S:Set </objects>
+         requires findSizeObject(Base, .K, S) =/=K none
+
+    rule <threads> <thread>...
+           <k> printFun(typedArg(L:Set, T:K,
+                    loc(Base:Int, pointerTypeValue(integerType(8), Ad:Int),
+                     value(Left:Int, Right:Int), Ran:K, Bl:K, InR:K)), Es:ElemList) ~> K:K </k>
+           <memChannelId> Chan:K </memChannelId>
+            ...</thread> TD:Bag => .Bag </threads>
+         <channelId> Chan </channelId>
+         <objects> S:Set </objects>
+         <output>... .List =>
+            ListItem("Error: the poniter for the printf function does not ponit to a valid place.")
+         </output>
+         requires findSizeObject(Base, .K, S) ==K none
+
+    rule printFunAux(T:K, region(L:List, Size:Int), Es:ElemList)
+             => printFunNext(joinBytes(T, L),Es)
+
+    rule <k> printFunNext(arrayValue(As:ElemList), .ElemList)
+                 => lengthOfList(As) ...</k>
+         <output>... .List => ListItem(formString(As, "")) </output>
+         requires notBool hasPercentage(As)
+
+    rule printFunNext(arrayValue(As:ElemList), (valValue(X:K),Es:ElemList))
+                => printFunNext(arrayValue(replacePerWithTarget(As, X)), Es)
+         requires replacePerWithTarget(As, X) =/=K none
+
+    rule printFunNext(arrayValue(As:ElemList), (valValue(X:K),Es:ElemList)) => -1
+         requires replacePerWithTarget(As, X) ==K none
+
+    //if there is an error in the printf function, returns -1
+    rule printFunNext(arrayValue(As:ElemList), .ElemList) => -1 
+         requires hasPercentage(As)
+
+    rule printFunNext(arrayValue(As:ElemList), (valValue(A:K), Es:ElemList)) => -1
+         requires notBool hasPercentage(As)
 
     //memcpy is bascially a restricted form of memmove
     //what we need to do is to transform memcpy to memmove by checking if two overlaps

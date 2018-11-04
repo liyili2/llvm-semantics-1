@@ -8,6 +8,93 @@ module LLVM-HELPERS
     imports LLVM-ABSTRACTSYNTAX
     imports LLVM-SETTINGS
 
+    //a function to form a string from a list of 8-bit int
+    syntax String ::= formString(ElemList, String) [function]
+    rule formString(.ElemList, S:String) => S
+    rule formString((valValue(A:Int),Es:ElemList), S:String)
+             => formString(Es, S +String chrChar(A))
+
+    //a function to detect if there is a % in the string
+    syntax Bool ::= hasPercentage(ElemList) [function]
+    rule hasPercentage(.ElemList) => false
+    rule hasPercentage(valValue(A:Int),(valValue(B:Int),Es:ElemList)) => true
+         requires A ==K 37 andBool B =/=K 37
+    rule hasPercentage(valValue(A:Int),Es:ElemList)
+             => hasPercentage(Es)
+         requires A =/=K 37
+    rule hasPercentage(valValue(A:Int),(valValue(B:Int),Es:ElemList))
+            => hasPercentage(Es)
+         requires A ==K 37 andBool B ==K 37
+    rule hasPercentage(valValue(A:Int),Es:ElemList) => false [owise]
+
+    //functions to replace %something in printf
+    syntax ElemList ::= cutStringToIntList(String) [function]
+    rule cutStringToIntList(S:String) => .ElemList
+         requires lengthString(S) <=Int 0
+    rule cutStringToIntList(S:String)
+            => valValue(ordChar(substrString(S, 0, 1))),
+                           cutStringToIntList(substrString(S,1,lengthString(S)))
+         requires lengthString(S) >Int 0
+
+    syntax Bool ::= isFloatFlat(Int) [function]
+    rule isFloatFlat(A:Int) => A ==K 97 orBool A ==K 65 orBool A ==K 101 orBool A ==K 69
+                          orBool A ==K 102 orBool A ==K 70 orBool A ==K 103 orBool A ==K 71
+
+    syntax Float ::= calculateFloat(Int, Int, List) [function]
+    rule calculateFloat(1, E:Int, L:List)
+              => (0.0) -Float (String2Float("1"+String "." +String Int2String(binToDecNoLimit(L)))
+                        *Float rootFloat(2.0, (E -Int 1023) *Int -1))
+    rule calculateFloat(0, E:Int, L:List)
+              => (String2Float("1"+String "." +String Int2String(binToDecNoLimit(L)))
+                        *Float rootFloat(2.0, (E -Int 1023) *Int -1))
+
+    syntax KItem ::= replacePerWithTarget(ElemList, K) [function]
+    rule replacePerWithTarget(.ElemList, A:K) => none
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), 
+                typedArg(L:Set, integerType(32), X:Int))
+           => combineElemList(cutStringToIntList(
+                   Int2String(deNormalizingInt(integerType(32), X))), Es)
+         requires A ==K 37 andBool (B ==K 100 orBool B==K 105)
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), 
+                typedArg(L:Set, integerType(32), X:Int))
+           => combineElemList(cutStringToIntList(
+                   Int2String(normalizingInt(integerType(32), X))), Es)
+         requires A ==K 37 andBool B ==K 117
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), 
+                typedArg(L:Set, T:K, X:Int))
+           => valValue(normalizingInt(integerType(8), X)), Es
+         requires A ==K 37 andBool B ==K 99 andBool isIntegerType(T)
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), 
+                typedArg(L:Set, pointerTypeValue(_:K, _:K),
+                           loc(X:Int, _:K, _:K, _:K, _:K, _:K)))
+           => combineElemList(cutStringToIntList(
+                   Int2String(normalizingInt(integerType(32), X))), Es)
+         requires A ==K 37 andBool B ==K 112
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), 
+                typedArg(L:Set, double, float(Q:Int, E:Int, TL:List)))
+           => combineElemList(cutStringToIntList(
+                Float2String(calculateFloat(Q, E, TL))), Es)
+         requires A ==K 37 andBool isFloatFlat(B)
+    rule replacePerWithTarget(valValue(A:Int),Es:ElemList, X:K)
+                     => valValue(A),replacePerWithTarget(Es, X)
+         requires A =/=K 37
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), X:K)
+            => valValue(A),replacePerWithTarget(Es, X)
+         requires A ==K 37 andBool B ==K 37
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), X:K) => Es
+         requires A ==K 37 andBool B ==K 100
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList),
+                 typedArg(L:Set, pointerTypeValue(integerType(8), Ad:Int), X:K))
+            => combineElemList(cutStringToIntList("string"), Es)
+         requires A ==K 37 andBool B ==K 115
+    rule replacePerWithTarget(valValue(A:Int),(valValue(B:Int),Es:ElemList), X:K)
+            => valValue(A:Int),(valValue(B:Int),replacePerWithTarget(Es, X))
+         requires A ==K 37 andBool B =/=K 37 andBool B =/=K 100
+                   andBool B =/=K 105 andBool B =/=K 117 andBool B =/=K 99
+                   andBool B =/=K 112 andBool notBool isFloatFlat(B)
+                   andBool B =/=K 115
+    rule replacePerWithTarget(valValue(A:Int),Es:ElemList, X:K) => none [owise]
+
     //get a single block defs inside from insts
     syntax Set ::= getDefVarsInBody(K, Map) [function]
     rule getDefVarsInBody(.K, .Map) => .Set
@@ -136,6 +223,67 @@ module LLVM-HELPERS
               => SetItem(inrange)
     rule getInrange(valValue(typeOperandGepVal(.K, T:K, V:K)), Es:ElemList)
               => getInrange(Es)
+
+    //a function to check if a const has values that has been defined. 
+    syntax Bool ::= hasDefinedVar(K, Set) [function]
+                  | hasDefinedVarGep(ElemList, Set) [function]
+
+    rule hasDefinedVar(X:SymbolicValueRef, S:Set) => X in S
+    rule hasDefinedVar(constCastAST(A:K, B:K, C:K, D:K), S:Set)
+              => hasDefinedVar(C, S)
+    rule hasDefinedVar(constBinAST(A:K, B:K, C:K, D:K, E:K), S:Set)
+                => hasDefinedVar(C, S) orBool hasDefinedVar(E,S)
+    rule hasDefinedVar(blockAddAST(A:K, B:K), S:Set) => false
+    rule hasDefinedVar(constIcmpAST(A:K, B:K, C:K, D:K, E:K), S:Set)
+                  => hasDefinedVar(C, S) orBool hasDefinedVar(E,S)
+    rule hasDefinedVar(constFcmpAST(A:K, B:K, C:K, D:K, E:K), S:Set)
+                  => hasDefinedVar(C, S) orBool hasDefinedVar(E,S)
+    rule hasDefinedVar(constExValueAST(A:K, B:K, C:ElemList), S:Set)
+                  => hasDefinedVar(B, S)
+    rule hasDefinedVar(constInValueAST(A:K, B:K, C:K, D:K, E:ElemList), S:Set)
+                  => hasDefinedVar(B, S) orBool hasDefinedVar(D,S)
+    rule hasDefinedVar(constSuffleAST(A:K, B:K, C:K, D:K, E:K, F:K), S:Set)
+                  => hasDefinedVar(B, S) orBool hasDefinedVar(D,S)
+                        orBool hasDefinedVar(F, S)
+    rule hasDefinedVar(constGepAST(A:K, B:K, C:ElemList), S:Set)
+                  => hasDefinedVarGep(C, S)
+    rule hasDefinedVar(constSelectAST(A:K, B:K, C:K, D:K, E:K, F:K), S:Set)
+                  => hasDefinedVar(B, S) orBool hasDefinedVar(D,S)
+                        orBool hasDefinedVar(F, S)
+    rule hasDefinedVar(constExElemAST(A:K, B:K, C:K, D:K), S:Set)
+                  => hasDefinedVar(B, S) orBool hasDefinedVar(D,S)
+    rule hasDefinedVar(constInElemAST(A:K, B:K, C:K, D:K, E:K, F:K), S:Set)
+                  => hasDefinedVar(B, S) orBool hasDefinedVar(D,S)
+                        orBool hasDefinedVar(F, S)
+    rule hasDefinedVar(vector(Es:ElemList),S:Set)
+               => hasDefinedVarGep(Es, S)
+    rule hasDefinedVar(array(Es:ElemList),S:Set)
+               => hasDefinedVarGep(Es, S)
+    rule hasDefinedVar(constantStruct(Es:ElemList),S:Set)
+               => hasDefinedVarGep(Es, S)
+    rule hasDefinedVar(packedStruct(Es:ElemList),S:Set)
+               => hasDefinedVarGep(Es, S)
+    rule hasDefinedVar(A:K, S:Set) => false [owise]
+
+    rule hasDefinedVarGep(.ElemList, S:Set) => false
+    rule hasDefinedVarGep((val(operand(A:K, B:K)), Es:ElemList), S:Set)
+                 => hasDefinedVar(B, S) orBool hasDefinedVarGep(Es, S)
+
+    syntax List ::= insertPostInit(K, List) [function]
+    rule insertPostInit(A:K, .List) => ListItem(A)
+    rule insertPostInit(postInit(L:Set, Ty:K, X:K,
+            Init:K, Ad:Int, Al:Int), ListItem(postInit(L':Set, Ty':K, X':K,
+            Init':K, Ad':Int, Al':Int)) TL:List)
+          => ListItem(postInit(L:Set, Ty:K, X:K,
+            Init:K, Ad:Int, Al:Int)) ListItem(postInit(L':Set, Ty':K, X':K,
+            Init':K, Ad':Int, Al':Int)) TL:List
+         requires hasDefinedVar(Init', SetItem(X))
+    rule insertPostInit(postInit(L:Set, Ty:K, X:K,
+            Init:K, Ad:Int, Al:Int), ListItem(postInit(L':Set, Ty':K, X':K,
+            Init':K, Ad':Int, Al':Int)) TL:List)
+          => ListItem(postInit(L':Set, Ty':K, X':K,
+            Init':K, Ad':Int, Al':Int)) insertPostInit(postInit(L, Ty, X, Init, Ad, Al), TL)
+         requires notBool hasDefinedVar(Init', SetItem(X))
 
     //use for undef in getelementptr
     syntax KItem ::= toInrangeFlag(Set) [function]
@@ -1220,14 +1368,14 @@ module LLVM-HELPERS
     rule joinStructByte(Re:List, L:List, .TypeList) => undef
          requires size(Re) >Int 0
     rule joinStructByte(Re:List, L:List, (T:KResult, Ts:TypeList))
-             => joinStructByteAux(countByte(Re, .List, sizeof(T)), L, T, Ts)
+             => joinStructByteAux(countByteLeft(.List, Re, sizeof(T)), L, T, Ts)
     rule joinStructByteAux(countByteResult(Now:List, Rest:List),
                L:List, T:K, Ts:TypeList)
            => joinStructByte(Rest, L ListItem(joinBytes(T, Now)), Ts)
          requires structAlign dividesInt sizeof(T)
     rule joinStructByteAux(countByteResult(Now:List, Rest:List),
                L:List, T:K, Ts:TypeList)
-           => joinStructByte(getRightCountResult(countByte(Rest, .List,
+           => joinStructByte(getRightCountResult(countByteLeft(.List, Rest,
              (((sizeof(T) /Int structAlign) +Int 1)
                      *Int structAlign) -Int sizeof(T))),
                    L ListItem(joinBytes(T, Now)), Ts)
@@ -1245,7 +1393,7 @@ module LLVM-HELPERS
     rule joinPackedStructByte(Re:List, L:List, .TypeList) => undef
          requires size(Re) >Int 0
     rule joinPackedStructByte(Re:List, L:List, (T:KResult, Ts:TypeList))
-             => joinPackedStructByteAux(countByte(Re, .List, sizeof(T)), L, T, Ts)
+             => joinPackedStructByteAux(countByteLeft(.List, Re, sizeof(T)), L, T, Ts)
     rule joinPackedStructByteAux(countByteResult(
                           L:List, R:List), Re:List, T:K, Ts:TypeList)
            => joinPackedStructByte(R, Re ListItem(joinBytes(T, L)), Ts)
@@ -1345,7 +1493,7 @@ module LLVM-HELPERS
 
     //joining float bytes
     rule joinFloatByteAuxA(ListItem(A:Int) L:List, T:K)
-          => joinFloatByteAuxB(A, countByte(L, .List, exponentOf(T)), T)
+          => joinFloatByteAuxB(A, countByteLeft(.List, L, exponentOf(T)), T)
     rule joinFloatByteAuxA(ListItem(A:K) L:List, T:K) => A
          requires notBool isAInt(A)
     rule joinFloatByteAuxB(A:Int, countByteResult(Now:List, Rest:List), T:K)
@@ -1353,7 +1501,7 @@ module LLVM-HELPERS
          requires T =/=K ppc_fp128 andBool isAllInt(Rest) andBool isAllInt(Now)
     rule joinFloatByteAuxB(A:Int, countByteResult(Now:List, Rest:List), ppc_fp128)
            => joinFloatByteAuxC(A, Now,
-                 getRightCountResult(countByte(Rest, .List, sizeofInBits(ppc_fp128)
+                 getRightCountResult(countByteLeft(.List, Rest, sizeofInBits(ppc_fp128)
                    -Int mantissaOf(ppc_fp128)
                        -Int exponentOf(ppc_fp128) -Int 1)), ppc_fp128)
          requires isAllInt(Rest) andBool isAllInt(Now)
@@ -1377,7 +1525,7 @@ module LLVM-HELPERS
 
     //deal with joining array bytes
     rule joinArrayByte(L:List, Re:List, N:Int, Size:Int, InTy:K)
-           => joinArrayByteAux(countByte(L, .List, sizeof(InTy)),
+           => joinArrayByteAux(countByteLeft(.List, L, sizeof(InTy)),
                  Re, N, Size, InTy)
          requires N <Int Size
     rule joinArrayByte(L:List, Re:List, N:Int, Size:Int, InTy:K)
@@ -1394,7 +1542,7 @@ module LLVM-HELPERS
                 N +Int 1, Size, InTy)
 
     rule joinVectorByte(L:List, Re:List, N:Int, Size:Int, InTy:K)
-           => joinVectorByteAux(countByte(L, .List, sizeof(InTy)),
+           => joinVectorByteAux(countByteLeft(.List, L, sizeof(InTy)),
                  Re, N, Size, InTy)
          requires N <Int Size
     rule joinVectorByte(L:List, Re:List, N:Int, Size:Int, InTy:K)
@@ -1967,8 +2115,8 @@ module LLVM-HELPERS
                 numBitsPerByte), X, N)
          requires X <Int N
     rule splitFloatByteAuxA(countByteResult(Re:List, L:List), X, N)
-           => ListItem(intByte(L))
-                 splitFloatByteAux(Re, X +Int numBitsPerByte, N)
+           => splitFloatByteAux(Re, X +Int numBitsPerByte, N)
+                      ListItem(intByte(L))
 
     syntax List ::= splitIntByteAux(K, Int) [function]
                   | splitIntByte(K, Int, Int) [function]
@@ -1979,9 +2127,8 @@ module LLVM-HELPERS
           => ListItem(intByte(L))
          requires A:Int ==Int 0
     rule splitIntByteAux(countByteResult(Re:List, L:List), A:Int)
-          => ListItem(intByte(L))
-             splitIntByteAux(countByte(Re, .List, numBitsPerByte),
-               A -Int numBitsPerByte)
+          => splitIntByteAux(countByte(Re, .List, numBitsPerByte),
+               A -Int numBitsPerByte) ListItem(intByte(L))
          requires A:Int >Int 0
 
     rule splitIntByteAux(intLoc(countByteResult(Re:List, L:List),
@@ -1993,9 +2140,9 @@ module LLVM-HELPERS
          requires A:Int ==Int 0
     rule splitIntByteAux(intLoc(countByteResult(Re:List, L:List),
            T:K, Fom:K, Ran:K, BA:K), A:Int)
-          => ListItem(intLoc(intByte(L), T, Fom, Ran, BA))
-             splitIntByteAux(intLoc(countByte(Re, .List, numBitsPerByte),
+          => splitIntByteAux(intLoc(countByte(Re, .List, numBitsPerByte),
             T:K, Fom:K, Ran:K, BA:K), A -Int numBitsPerByte)
+                  ListItem(intLoc(intByte(L), T, Fom, Ran, BA))
          requires A:Int >Int 0
 
     rule splitIntByte(A:K, N:Int, B:Int)
@@ -5364,6 +5511,16 @@ module LLVM-HELPERS
                  => countByte(L, ListItem(A:K) L1, I -Int 1)
           requires I >Int 0
 
+    syntax KItem ::= countByteLeft(List, List, Int) [function]
+    rule countByteLeft(L':List, L:List, I:Int) => countByteResult(L', L)
+         requires I <=Int 0
+    rule countByteLeft(L:List, .List, I:Int)
+                 => countByteLeft(L ListItem(undef), .List, I -Int 1)
+         requires I >Int 0
+    rule countByteLeft(L:List, ListItem(A:K) L1:List, I:Int)
+                 => countByteLeft(L ListItem(A:K), L1, I -Int 1)
+          requires I >Int 0
+
     syntax Set ::= listToSet(List) [function]
     rule listToSet(.List) => .Set
     rule listToSet(ListItem(A:K) L:List) => SetItem(A) listToSet(L)
@@ -5722,10 +5879,10 @@ module LLVM-HELPERS
     syntax List ::= getMemWithAtomic(Map, Int, Int, Int) [function]
     rule getMemWithAtomic(M:Map, B:Int, Size:Int, Size:Int) => .List
     rule getMemWithAtomic((B +Int N |-> V:K) M:Map, B:Int, N:Int, Size:Int)
-              => getMemWithAtomic(M, B, N +Int 1, Size) ListItem(V)
+              => ListItem(V) getMemWithAtomic(M, B, N +Int 1, Size) 
          requires N <Int Size
     rule getMemWithAtomic(M:Map, B:Int, N:Int, Size:Int)
-              => getMemWithAtomic(M, B, N +Int 1, Size) ListItem(undef)
+              =>  ListItem(undef) getMemWithAtomic(M, B, N +Int 1, Size)
          requires N <Int Size andBool notBool ((B +Int N) in keys(M))
 
     syntax Int ::= sizeOfFunArg(ElemList) [function]
@@ -5778,6 +5935,19 @@ module LLVM-HELPERS
          requires A =/=K .K
     rule findItemsInMap(A:K, M, B:K, A':K) => findItemsInMap(A, M, .K, .K)
          requires A' =/=K .K andBool A =/=K A'
+
+    //a function to find the actual size of a range, if the range does not exist, none
+    syntax KItem ::= findSizeObject(Int, K, Set) [function]
+    rule findSizeObject(A:Int, .K, .Set) => none
+    rule findSizeObject(A:Int, .K, SetItem(B:K) S:Set)
+            => findSizeObject(A, B, S)
+    rule findSizeObject(A:Int, object(value(Left:Int, Right:Int),
+             Size:Int, C:Int, D:Int, E:K, F:Set, G:Map), S:Set) => Size
+         requires A >=Int Left andBool A <=Int Right
+    rule findSizeObject(A:Int, object(value(Left:Int, Right:Int),
+             Size:Int, C:Int, D:Int, E:K, F:Set, G:Map), S:Set)
+             => findSizeObject(A, .K, S)
+         requires notBool (A >=Int Left andBool A <=Int Right)
 
     //use for determining if a base + offset is valid memory/stack location
     syntax Bool ::= isInStackRange(List, Int, Int, Set) [function]
@@ -5890,12 +6060,13 @@ module LLVM-HELPERS
     rule insertToOrderList(A:Int, B:K, .List) => ListItem(readPiece(A,B))
     rule insertToOrderList(A:Int, B:K, ListItem(
                                readPiece(A':Int, C:K)) L:List)
-          => ListItem(readPiece(A, B)) L
-         requires A >=Int A' 
+          => ListItem(readPiece(A, B)) ListItem(
+                               readPiece(A':Int, C:K)) L
+         requires A <=Int A' 
     rule insertToOrderList(A:Int, B:K, ListItem(
                                readPiece(A':Int, C:K)) L:List)
           => ListItem(readPiece(A', C)) insertToOrderList(A, B, L)
-         requires A <Int A' 
+         requires A >Int A' 
 
     //use for comparing casting ops
     syntax Bool ::= compareCastIntNums(K, Int, Int) [function]

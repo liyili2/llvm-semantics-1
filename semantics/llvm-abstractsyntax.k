@@ -525,6 +525,7 @@ module LLVM-ABSTRACTSYNTAX
     //syntax KItem ::= funCountLabel(Int, K)//position, ptr
     syntax ValueRef ::= Loc
     syntax KItem ::= dealWithUnnamed(List)
+    syntax KItem ::= "dealWithUnnamed"
     syntax KItem ::= mapEntry(K, K) //key, value
     syntax KItem ::= vector(ElemList)           [strict]
     rule vector(E:KResult) => vectorValue(E)
@@ -626,7 +627,8 @@ module LLVM-ABSTRACTSYNTAX
               // Value/Name, Modifiers, Type, Initializer, address space, align
     syntax KItem ::= preInit(Set, K, K, K, K, Int, Int) [strict(4)]
                //modifiers, type, var, location, init, address space, align
-    syntax KItem ::= postInit(Set, K, K, K, Int, Int) [strict(4)]
+    syntax KItem ::= postInit(Set, K, K, K, Int, Int)
+                //modifiers, ty, var, init, address space, align
     syntax KItem ::= postInitAux(Set, List, K, K, K, Int, Int)
     syntax KItem ::= postInitNext(Set, K, List, K, K, K, Int, Int)
                //modifiers, list of equal content fileds, type, var, init, align  
@@ -1098,6 +1100,9 @@ module LLVM-ABSTRACTSYNTAX
     syntax KItem ::= constGepNext(K,K,K,ElemList)
                   //inbounds, type, pointer, index
                    | constGepTypeNext(K, K) [strict(2)] //type, result
+                   | constCastTypeNext(K, K, K, K) [strict(3,4)]
+                    //op, input-type, target-type, ref-type/val
+                   | constCastNext(K, K) [strict(2)]
 
     //type check functions
     syntax KItem ::= typeCheckOp(K, K, K) //block name, var name, op
