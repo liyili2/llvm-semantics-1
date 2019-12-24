@@ -35,17 +35,21 @@ K-LLVM is supposed to run on K 3.6 platform.
 
 To compile K-LLVM, it is required to have more than 8G memory. Please follow the following steps. First, unzip the k.zip file. In the k/bin directory, it contains all necessary tools. Assume that users have set the path to the k/bin directory. To compile K-LLVM, go to the semantics directory, and hit:
 
-kompile llvm-semantics.k
+$ kompile llvm-semantics.k
 
 This command allows users to build K-LLVM in K. Now, to execute a LLVM program, please do the following:
 
-krun xxx.ll
+$  krun xxx.ll
 
 This command executes the program xxx.ll by using the K-LLVM semantics we just compiled above, and creates a final abstract machine state containing all information in different cells after executing the program. To see the step by step result, users need to use the following command:
 
-krun xxx.ll --depth num
+$  krun xxx.ll --depth num
 
 The command allows users to see an execution with maximally "num" number of steps. 
+
+All executable LLVM IR programs for the K-LLVM should not contain comments. The tool DeleteLLVMComments.java helps clean the comments in a LLVM IR program. To execute a comment-deleted program, just use the following command:
+
+$ krun --parser "java DeleteLLVMComments" --directory mysemanticsdirectory myprogram.ll
 
 
 
