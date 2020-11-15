@@ -1,4 +1,5 @@
-//
+//Liyi Li and Elsa Gunter 2020
+//This file is a derivative of work by Charles Ellison and David Lazar
 requires "llvm-syntax.k"
 requires "llvm-abstractsyntax.k"
 requires "llvm-settings.k"

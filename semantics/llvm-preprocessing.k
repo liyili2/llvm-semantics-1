@@ -1,3 +1,5 @@
+//Liyi Li and Elsa Gunter 2020
+//This file is a derivative of work by Charles Ellison and David Lazar
 //This module will look at files and separate them into different parts without looking at
 //the content of function bodies.
 requires "llvm-syntax.k"
